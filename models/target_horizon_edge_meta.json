@@ -1,0 +1,26 @@
+{
+  "purpose": "Test whether prediction target definition and horizon provide a more stable directional edge.",
+  "thresholds": [
+    0.0,
+    0.002,
+    0.0035,
+    0.005,
+    0.0075
+  ],
+  "horizons": [
+    "next_day",
+    "three_day"
+  ],
+  "selection_rule": "balanced_accuracy then accuracy then F1, with minimum 100 test observations",
+  "warning": "Thresholded targets intentionally exclude small moves. Coverage must be reported alongside accuracy.",
+  "best": {
+    "horizon": "next_day",
+    "move_threshold": 0.005,
+    "config": "cat_base",
+    "test_samples": 284,
+    "accuracy": 0.5845070422535211,
+    "balanced_accuracy": 0.560483870967742,
+    "f1": 0.6703910614525139,
+    "coverage_vs_all_rows": 0.13129912159038373
+  }
+}

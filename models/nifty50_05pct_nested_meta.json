@@ -1,0 +1,60 @@
+{
+  "target": "next_day_abs_return_ge_0.5pct",
+  "move_threshold": 0.005,
+  "outer_oos_metrics": {
+    "accuracy": 0.53125,
+    "balanced_accuracy": 0.5066872996573449,
+    "precision": 0.5725190839694656,
+    "recall": 0.6880733944954128,
+    "f1": 0.625,
+    "auc": 0.5138996352382005,
+    "logloss": 0.7072588640122293
+  },
+  "outer_selection_frequency": [
+    {
+      "config": "cat_base",
+      "features": 30,
+      "count": 2
+    },
+    {
+      "config": "cat_conservative",
+      "features": 178,
+      "count": 1
+    }
+  ],
+  "production_config": "cat_base",
+  "production_feature_count": 30,
+  "production_features": [
+    "GAP",
+    "VOLUME_CHANGE",
+    "NIFTY_Bank_Return_1D_LAG2",
+    "MA_SLOPE10_200",
+    "Crude_Oil_Return_1D_LAG3",
+    "India_VIX_Return_5D_LAG3",
+    "ADX_14",
+    "MACD_HIST_8_21",
+    "NIFTY_Bank_Return_5D_LAG1",
+    "SP500_Return_5D",
+    "Crude_Oil_Return_1D_LAG2",
+    "USD_INR_Return_1D",
+    "NIFTY_Bank_Return_5D_LAG2",
+    "RET_2",
+    "RET_1",
+    "SP500_Return_1D_LAG2",
+    "USD_INR_Return_5D_LAG3",
+    "CLOSE_LOCATION",
+    "BB_WIDTH_30",
+    "USD_INR_Return_1D_LAG1",
+    "Gold_Return_5D_LAG2",
+    "Gold_Return_5D_LAG1",
+    "PX_MA_10",
+    "USD_INR_Return_1D_LAG2",
+    "Crude_Oil_Return_5D_LAG2",
+    "MA_SLOPE_5",
+    "MA_SLOPE10_50",
+    "SP500_Return_1D",
+    "MINUS_DI_14",
+    "USD_INR_Return_5D_LAG2"
+  ],
+  "warning": "Outer OOS metrics are the primary generalization estimate. Thresholds with low coverage are not reliable evidence."
+}

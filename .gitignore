@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Node
+node_modules/
+web/node_modules/
+web/dist/
+web/.vite/
+
+# Python cache / tooling
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Data generated locally
+data/*.csv
+data/*.json
+data/*.parquet
+data/*.pkl
+
+# ML models
+models/*.pkl
+models/*.joblib
+models/*.cbm
+
+# Logs
+*.log
+logs/
+
+# Runtime state
+.pipeline_status.json
+.last_pipeline_run
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editors
+.vscode/
+.idea/
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+
+# Jupyter
+.ipynb_checkpoints/

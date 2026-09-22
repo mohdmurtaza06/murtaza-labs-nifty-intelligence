@@ -1,0 +1,23 @@
+{
+  "purpose": "Test whether backward-looking regime and cross-market transformations improve chronological out-of-sample NIFTY direction prediction.",
+  "detected_sources": {},
+  "added_features": [
+    "DAY_OF_WEEK",
+    "MONTH_END",
+    "MONTH_END_DISTANCE",
+    "MONTH_START",
+    "NIFTY_VOL20",
+    "NIFTY_VOL60",
+    "REGIME_PRICE_200",
+    "REGIME_TREND_20_50",
+    "REGIME_TREND_50_200",
+    "TREND_REGIME",
+    "VOLATILITY_REGIME",
+    "VOL_REGIME_RATIO"
+  ],
+  "feature_count_original": 178,
+  "feature_count_regime_cross_market": 190,
+  "outer_initial": 1470,
+  "outer_size": 220,
+  "warning": "This is a research comparison. It does not establish a profitable trading strategy."
+}

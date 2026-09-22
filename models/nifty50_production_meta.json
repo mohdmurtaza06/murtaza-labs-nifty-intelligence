@@ -1,0 +1,26 @@
+{
+  "architecture": "CATBOOST_PRODUCTION_SAFE_REGIME_CROSS_MARKET",
+  "trained_through": "2026-09-18",
+  "training_rows": 2163,
+  "feature_count": 298,
+  "target": "next_trading_day_direction",
+  "detected_sources": {
+    "INDIA_VIX": "India_VIX_Return_1D",
+    "BANKNIFTY": "NIFTY_Bank_Return_1D",
+    "SP500": "SP500_Return_1D",
+    "USDINR": "USD_INR_Return_1D",
+    "GOLD": "Gold_Return_1D",
+    "CRUDE": "Crude_Oil_Return_1D"
+  },
+  "safe_lagged_sources": [
+    "SP500",
+    "USDINR",
+    "GOLD",
+    "CRUDE"
+  ],
+  "same_session_sources": [
+    "INDIA_VIX",
+    "BANKNIFTY"
+  ],
+  "note": "Production feature timing is constrained so overseas/timing-sensitive market returns are lagged before they enter the model."
+}

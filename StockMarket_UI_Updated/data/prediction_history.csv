@@ -1,0 +1,2 @@
+Prediction_Date,NIFTY_Close,Prediction,Probability_UP,Probability_DOWN,Confidence,Signal,Actual_Next_Day,Correct
+2026-09-18,23346.400390625,DOWN,0.43922862,0.56077135,0.56077135,BEARISH,,

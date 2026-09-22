@@ -1,0 +1,51 @@
+{
+  "architecture": "WEIGHTED_ENSEMBLE",
+  "selected_by": "walk-forward logloss",
+  "trained_through": "2026-09-17",
+  "training_start": "2015-03-17",
+  "samples": 2162,
+  "feature_count": 178,
+  "weights": {
+    "logistic": 0.24974594268470895,
+    "xgb": 0.24874718131608764,
+    "lgbm": 0.2485673915543496,
+    "catboost": 0.2529394844448539
+  },
+  "summary": [
+    {
+      "model": "catboost",
+      "accuracy": 0.5931060606060606,
+      "balanced_accuracy": 0.5629308119393124,
+      "logloss": 0.6815910507319018,
+      "auc": 0.5651787991924832
+    },
+    {
+      "model": "ALL_ENSEMBLE",
+      "accuracy": 0.5796212121212121,
+      "balanced_accuracy": 0.5564764263122314,
+      "logloss": 0.6845230526465299,
+      "auc": 0.5488150385157154
+    },
+    {
+      "model": "logistic",
+      "accuracy": 0.5636363636363636,
+      "balanced_accuracy": 0.5385969073184865,
+      "logloss": 0.6903066785174676,
+      "auc": 0.550175682083479
+    },
+    {
+      "model": "xgb",
+      "accuracy": 0.5578030303030302,
+      "balanced_accuracy": 0.5468816157020219,
+      "logloss": 0.6930783788363138,
+      "auc": 0.5379952878903246
+    },
+    {
+      "model": "lgbm",
+      "accuracy": 0.5393181818181818,
+      "balanced_accuracy": 0.5302969432549063,
+      "logloss": 0.693579685848498,
+      "auc": 0.5402364167583847
+    }
+  ]
+}

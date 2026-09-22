@@ -1,0 +1,88 @@
+{
+  "base_model": "nifty50_optimized_model.pkl",
+  "configuration": "cat_base",
+  "feature_count": 178,
+  "calibration": {
+    "type": "platt_logit",
+    "coef": 0.6679276756997021,
+    "intercept": 0.032101590713975614
+  },
+  "oos_samples": 822,
+  "oos_start": "2022-06-17",
+  "oos_end": "2026-09-17",
+  "holdout_last_30pct_metrics": {
+    "n": 247,
+    "accuracy": 0.5344129554655871,
+    "balanced_accuracy": 0.5396065573770492,
+    "logloss": 0.6919164260162834,
+    "auc": 0.5693114754098361,
+    "brier": 0.2493633408771345
+  },
+  "thresholds": [
+    {
+      "threshold": 0.5,
+      "predictions": 822,
+      "coverage": 1.0,
+      "accuracy": 0.5291970802919708,
+      "balanced_accuracy": 0.5063657166631995,
+      "avg_probability": 0.5740838670626043
+    },
+    {
+      "threshold": 0.52,
+      "predictions": 742,
+      "coverage": 0.902676399026764,
+      "accuracy": 0.5309973045822103,
+      "balanced_accuracy": 0.5065420969718186,
+      "avg_probability": 0.5810648571815721
+    },
+    {
+      "threshold": 0.55,
+      "predictions": 628,
+      "coverage": 0.7639902676399026,
+      "accuracy": 0.5191082802547771,
+      "balanced_accuracy": 0.5023158493479056,
+      "avg_probability": 0.5894694564998669
+    },
+    {
+      "threshold": 0.57,
+      "predictions": 537,
+      "coverage": 0.6532846715328468,
+      "accuracy": 0.5121042830540037,
+      "balanced_accuracy": 0.49203029460811565,
+      "avg_probability": 0.5944587246580005
+    },
+    {
+      "threshold": 0.6,
+      "predictions": 150,
+      "coverage": 0.18248175182481752,
+      "accuracy": 0.5266666666666666,
+      "balanced_accuracy": 0.48980139559849706,
+      "avg_probability": 0.6177172803089473
+    },
+    {
+      "threshold": 0.62,
+      "predictions": 48,
+      "coverage": 0.058394160583941604,
+      "accuracy": 0.5625,
+      "balanced_accuracy": 0.48214285714285715,
+      "avg_probability": 0.6400856961620737
+    },
+    {
+      "threshold": 0.65,
+      "predictions": 11,
+      "coverage": 0.01338199513381995,
+      "accuracy": 0.7272727272727273,
+      "balanced_accuracy": 0.5,
+      "avg_probability": 0.6681427066661235
+    },
+    {
+      "threshold": 0.67,
+      "predictions": 5,
+      "coverage": 0.006082725060827251,
+      "accuracy": 0.6,
+      "balanced_accuracy": 0.5,
+      "avg_probability": 0.6775239830472201
+    }
+  ],
+  "note": "Thresholds are fixed evaluation bands. No threshold was selected from the holdout outcomes."
+}
