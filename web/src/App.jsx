@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 
-const API = "/api";
-
+const API = "https://murtaza-labs-nifty-intelligence-3.onrender.com/api";
 function Sparkline({ prices = [], large = false }) {
   if (prices.length < 2) {
     return <div className="empty-chart">MARKET DATA UNAVAILABLE</div>;
