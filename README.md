@@ -35,9 +35,11 @@ production model.
 `notebooks/19_daily_pipeline.py` runs the research predictor
 (`notebooks/15_live_prediction_production.py`), records the same signal in
 `data/prediction_history.csv`, verifies prior predictions against the next
-session's open-to-close outcome, and refreshes evaluation results. The API
-scheduler triggers this pipeline on weekdays at 16:00 Asia/Kolkata time,
-after the normal 15:30 close and an initial data-settlement buffer.
+session's open-to-close outcome, and refreshes evaluation results. The
+in-process API scheduler is **disabled by default**. Set
+`NIFTY_ENABLE_SCHEDULER=true` only for a single-process local research run; it
+checks weekdays at 16:00 Asia/Kolkata time. Do not use this process-local
+scheduler as a production multi-worker job service.
 
 Research directions are displayed for analysis only. API responses identify
 `trade_status=NO_TRADE`, `trading_mode=RESEARCH_ONLY`,
@@ -52,9 +54,13 @@ Machine-readable probabilities (`probability_up`, `probability_down`, and
 
 The API has separate liveness and release-readiness reporting. Open
 `GET /api/health` to confirm the process responds and `GET /api/readiness` to
-see the evidence gates. The release readiness route deliberately remains
-`NOT_READY`; the service being online is not approval to trade. Gate statuses
-must only be updated after artifacts are independently inspected.
+inspect evidence on disk. The readiness inspector checks current-root market
+data, the canonical feature manifest/model metadata, calibration metadata,
+the one-time holdout report, the structured prospective paper ledger, and
+NIFTYBEES reconciliation. Missing, malformed, stale, or incompatible artifacts
+are reported as failed/unverified. The endpoint always leaves
+`production_eligible=false` and `live_orders_enabled=false`; an evidence
+report cannot itself authorize real-money execution.
 
 The project now includes shared fail-closed checks in `src/readiness_checks.py`:
 
@@ -127,3 +133,20 @@ while tuning models; register a new holdout for a genuine retest.
 `NIFTY_ROUND_TRIP_COST_BPS` can override the illustrative 20-basis-point cost
 assumption. Replace this with costs measured for the actual intended instrument
 and broker before interpreting trading returns.
+
+## Consolidated source release
+
+On a successful GitHub Actions run for `fix/production-readiness-gates`, the
+`source-package` job builds one ZIP plus a SHA-256 sidecar and uploads them
+as the `MURTAZA_LABS_NIFTY_INTELLIGENCE_SOURCE_RELEASE` workflow artifact.
+The package has a `RELEASE_MANIFEST.json` with commit identity, per-file
+hashes, artifact availability, and the trading/hosting state. The archive
+preserves `StockMarket_UI_Updated` under `legacy/` so it cannot be confused
+with the active root application.
+
+The package is labelled a source release because the Git repository does not
+contain active-root current market data, the canonical 172-feature manifest,
+or a promoted model binary. The historical snapshot is not a substitute. See
+[`RELEASE_READINESS.md`](RELEASE_READINESS.md) before running model training.
+Automatic Vercel deployments are disabled in the active repository and web
+root configuration until explicitly re-enabled by the owner.
