@@ -232,15 +232,20 @@ def _expected_calibration_error(y_true, probability, bins=10) -> float:
 
 
 def main():
-    prior_report_exists = REPORT_FILE.exists()
+    # Protect both files. If either prior artifact exists, assume this temporal
+    # holdout has already been exposed, even if someone deleted only the JSON.
+    prior_holdout_artifacts_exist = (
+        REPORT_FILE.exists() or PREDICTIONS_FILE.exists()
+    )
     holdout_reuse_authorized = (
         os.environ.get("ALLOW_HOLDOUT_REUSE", "").lower() == "true"
     )
-    if prior_report_exists and not holdout_reuse_authorized:
+    if prior_holdout_artifacts_exist and not holdout_reuse_authorized:
         raise SystemExit(
-            f"Refusing to overwrite prior holdout report: {REPORT_FILE}. "
-            "Use a newly registered holdout for a genuine retest. "
-            "ALLOW_HOLDOUT_REUSE=true is exploratory only and forfeits the untouched-holdout claim."
+            "Refusing to reuse a previously exposed holdout. Existing artifact(s): "
+            f"{REPORT_FILE.exists()=}, {PREDICTIONS_FILE.exists()=}. "
+            "Register a new holdout for a genuine retest. "
+            "ALLOW_HOLDOUT_REUSE=true is exploratory only and always fails the paper gate."
         )
 
     raw = load_data()
@@ -424,7 +429,7 @@ def main():
             "start": str(pd.Timestamp(holdout_index.min()).date()),
             "end": str(pd.Timestamp(holdout_index.max()).date()),
             "rows": int(len(holdout_index)),
-            "is_untouched": not prior_report_exists,
+            "is_untouched": not prior_holdout_artifacts_exist,
             "reuse_authorized_for_this_run": holdout_reuse_authorized,
             "probabilities_calibrated_on_separate_earlier_slice": True,
         },
@@ -465,13 +470,13 @@ def main():
         },
         "paper_trading_gate": (
             "PASS_FOR_PAPER_TRADING_ONLY"
-            if paper_gate_passed and not prior_report_exists
+            if paper_gate_passed and not prior_holdout_artifacts_exist
             else "HOLD_NO_TRADE"
         ),
         "paper_gate_checks": gates,
         "prospective_paper_observations_closed": 0,
         "production_eligible": False,
-        "holdout_reuse_invalidates_gate": bool(prior_report_exists),
+        "holdout_reuse_invalidates_gate": bool(prior_holdout_artifacts_exist),
         "live_orders_enabled": False,
         "real_money_approval": "NO",
         "note": (
