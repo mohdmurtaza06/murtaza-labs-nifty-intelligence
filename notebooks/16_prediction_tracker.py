@@ -11,8 +11,7 @@ PROJECT_DIR = Path(__file__).resolve().parent.parent
 
 DATA_DIR = PROJECT_DIR / "data"
 
-PRODUCTION_PREDICTION_FILE = DATA_DIR / "latest_production_prediction.json"
-LEGACY_PREDICTION_FILE = DATA_DIR / "live_prediction.csv"
+RESEARCH_PREDICTION_FILE = DATA_DIR / "latest_research_prediction.json"
 
 TRACKER_FILE = DATA_DIR / "prediction_history.csv"
 
@@ -22,27 +21,34 @@ TRACKER_FILE = DATA_DIR / "prediction_history.csv"
 # ============================================================
 
 print("=" * 60)
-print("PREDICTION TRACKER")
+print("RESEARCH PREDICTION TRACKER")
 print("=" * 60)
 
-print("\nLoading latest prediction...")
+print("\nLoading latest research-only prediction...")
 
-if PRODUCTION_PREDICTION_FILE.exists():
-    with PRODUCTION_PREDICTION_FILE.open(encoding="utf-8") as file:
+if RESEARCH_PREDICTION_FILE.exists():
+    with RESEARCH_PREDICTION_FILE.open(encoding="utf-8") as file:
         production = json.load(file)
 
     required = [
         "prediction_date", "nifty_close", "prediction", "probability_up",
-        "probability_down", "confidence",
+        "probability_down", "confidence", "target_horizon",
     ]
     missing = [key for key in required if key not in production]
     if missing:
         raise ValueError(
-            "Production prediction is missing required fields: "
+            "Research prediction is missing required fields: "
             + ", ".join(missing)
         )
 
+    if production.get("trading_mode") != "RESEARCH_ONLY":
+        raise ValueError("Prediction artifact is not explicitly marked research-only.")
+    if production.get("live_orders_enabled") is not False:
+        raise ValueError("Research prediction must explicitly keep live orders disabled.")
+
     prediction = str(production["prediction"]).upper()
+    if prediction not in {"UP", "DOWN"}:
+        raise ValueError(f"Unsupported prediction label: {prediction!r}")
     current = pd.DataFrame([{
         "Date": production["prediction_date"],
         "NIFTY_Close": production["nifty_close"],
@@ -50,22 +56,21 @@ if PRODUCTION_PREDICTION_FILE.exists():
         "Probability_UP": production["probability_up"],
         "Probability_DOWN": production["probability_down"],
         "Confidence": production["confidence"],
+        "Target_Horizon": production["target_horizon"],
         "Signal": "BULLISH" if prediction == "UP" else "BEARISH",
     }])
-    source = "production"
-elif LEGACY_PREDICTION_FILE.exists():
-    current = pd.read_csv(LEGACY_PREDICTION_FILE)
-    source = "legacy fallback"
+    source = "research candidate"
 else:
     raise FileNotFoundError(
-        "No production or legacy prediction file was found."
+        "No research prediction artifact found. Run 15_live_prediction_production.py "
+        "after creating a candidate model. Legacy prediction files are not accepted."
     )
 
 current["Date"] = pd.to_datetime(
     current["Date"]
 )
 
-print(f"Latest prediction loaded ({source}).")
+print(f"Latest research prediction loaded ({source}).")
 
 
 # ============================================================
@@ -82,6 +87,15 @@ if TRACKER_FILE.exists():
         history["Prediction_Date"]
     )
 
+    # Historical rows created before target horizon was recorded cannot be
+    # silently mixed with new execution assumptions.
+    if "Target_Horizon" not in history.columns:
+        history["Target_Horizon"] = "legacy_unknown"
+    else:
+        history["Target_Horizon"] = history["Target_Horizon"].fillna(
+            "legacy_unknown"
+        )
+
 else:
 
     history = pd.DataFrame(
@@ -92,6 +106,7 @@ else:
             "Probability_UP",
             "Probability_DOWN",
             "Confidence",
+            "Target_Horizon",
             "Signal",
             "Actual_Next_Day",
             "Correct"
@@ -131,6 +146,10 @@ new_record = pd.DataFrame({
         current["Confidence"].iloc[0]
     ],
 
+    "Target_Horizon": [
+        current["Target_Horizon"].iloc[0]
+    ],
+
     "Signal": [
         current["Signal"].iloc[0]
     ],
@@ -152,8 +171,12 @@ new_record = pd.DataFrame({
 if not history.empty:
 
     already_exists = (
-        history["Prediction_Date"]
-        == prediction_date
+        (
+            history["Prediction_Date"] == prediction_date
+        )
+        & (
+            history["Target_Horizon"] == current["Target_Horizon"].iloc[0]
+        )
     ).any()
 
 else:

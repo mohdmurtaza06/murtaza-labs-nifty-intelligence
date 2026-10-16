@@ -16,12 +16,16 @@ MODELS = BASE / "models"
 sys.path.insert(0, str(BASE / "src"))
 
 from model_features_ultimate import build_features
+from readiness_checks import (
+    validate_market_data_freshness,
+    validate_probability_pair,
+)
 
-MODEL_PATH = MODELS / "nifty50_production_model.pkl"
+MODEL_PATH = MODELS / "nifty50_research_candidate.pkl"
 LIVE_PATH = DATA / "live_market_data.csv"
 EXT_PATH = DATA / "nifty50_external_features.csv"
-OUTPUT_JSON = DATA / "latest_production_prediction.json"
-OUTPUT_CSV = DATA / "latest_production_prediction.csv"
+OUTPUT_JSON = DATA / "latest_research_prediction.json"
+OUTPUT_CSV = DATA / "latest_research_prediction.csv"
 
 
 def run_live_data_update():
@@ -69,13 +73,25 @@ def load_raw():
     live = pd.read_csv(LIVE_PATH, parse_dates=["Date"])
     live = live.drop_duplicates("Date").set_index("Date").sort_index()
 
-    if len(ext):
-        newer = live[live.index > ext.index.max()]
-        raw = pd.concat([ext, newer], axis=0, sort=False)
-    else:
-        raw = live
+    if live.empty:
+        raise RuntimeError("The live-data refresh produced no market rows.")
 
-    return raw.sort_index()
+    # Validate the freshly fetched file itself, not only the merged historical
+    # dataset. Otherwise an older external file could mask a stale live refresh.
+    live_latest_date = live.index.max()
+    live_age_days = validate_market_data_freshness(
+        live_latest_date,
+        max_age_days=4,
+        require_latest_completed_session=True,
+    )
+    print(
+        f"Verified live market data through {pd.Timestamp(live_latest_date).date()} "
+        f"(age {live_age_days} calendar day(s))."
+    )
+
+    # Prefer fresh rows and fresh values for overlapping dates; use the longer
+    # external history only to fill dates/fields that the live file lacks.
+    return live.combine_first(ext).sort_index() if not ext.empty else live.sort_index()
 
 
 def add_safe_cross_market_features(df):
@@ -187,18 +203,41 @@ def get_indicator(row, names):
 
 if not MODEL_PATH.exists():
     raise FileNotFoundError(
-        f"Production model not found: {MODEL_PATH}\n"
-        "Run 27_build_production_model.py first."
+        f"Research candidate not found: {MODEL_PATH}\n"
+        "Run 27_build_production_model.py to create a research-only candidate."
     )
 
-run_live_data_update()
+if not run_live_data_update():
+    raise RuntimeError(
+        "Market-data refresh failed. Refusing to publish a prediction "
+        "from potentially stale data."
+    )
 
 bundle = joblib.load(MODEL_PATH)
+EXPECTED_TARGET_HORIZON = "next_session_open_to_close_direction"
+if bundle.get("target") != EXPECTED_TARGET_HORIZON:
+    raise RuntimeError(
+        "The saved model uses an outdated or unsupported target horizon "
+        f"({bundle.get('target')!r}). Rebuild the model with "
+        "27_build_production_model.py before generating predictions."
+    )
+
 model = bundle["model"]
 feature_cols = bundle["feature_cols"]
 medians = pd.Series(bundle["medians"], dtype=float)
 
 raw = load_raw()
+if raw.empty:
+    raise RuntimeError("No market data is available after refresh.")
+
+# Fail closed when the latest observation is stale or future-dated.
+market_data_date = raw.index.max()
+market_data_age_days = validate_market_data_freshness(
+    market_data_date,
+    max_age_days=4,
+    require_latest_completed_session=True,
+)
+
 raw_enriched, detected = add_safe_cross_market_features(raw)
 
 features = build_features(raw_enriched)
@@ -237,8 +276,10 @@ latest = latest.fillna(medians.reindex(feature_cols))
 latest = latest.fillna(0.0)
 
 prob = model.predict_proba(latest)[0]
-prob_down = float(prob[0])
-prob_up = float(prob[1])
+prob_down, prob_up = validate_probability_pair(
+    float(prob[0]),
+    float(prob[1]),
+)
 
 prediction = "UP" if prob_up >= prob_down else "DOWN"
 # Persist all probability values as fractions (0-1), matching the legacy
@@ -317,6 +358,13 @@ risk_score = get_indicator(
 
 result = {
     "prediction_date": str(latest_date.date()),
+    "market_data_date": str(pd.Timestamp(market_data_date).date()),
+    "market_data_age_days": int(market_data_age_days),
+    "target_horizon": bundle["target"],
+    "trading_mode": "RESEARCH_ONLY",
+    "production_eligible": False,
+    "live_orders_enabled": False,
+    "probabilities_calibrated": bool(bundle.get("probabilities_calibrated", False)),
     "prediction": prediction,
     "probability_up": round(prob_up, 6),
     "probability_down": round(prob_down, 6),
@@ -352,7 +400,7 @@ pd.DataFrame([result]).to_csv(
 
 print()
 print("=" * 72)
-print("LIVE PRODUCTION PREDICTION")
+print("RESEARCH-ONLY PREDICTION (NO LIVE ORDERS)")
 print("=" * 72)
 print(f"Date             : {result['prediction_date']}")
 print(f"NIFTY 50         : {result['nifty_close']:.2f}")

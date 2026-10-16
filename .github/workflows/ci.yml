@@ -1,0 +1,88 @@
+name: Project safety checks
+
+on:
+  push:
+    branches:
+      - main
+      - "fix/**"
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  python-safety:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install test dependencies
+        run: python -m pip install --upgrade pip numpy pandas pandas-market-calendars fastapi
+
+      - name: Run fail-closed regression tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Compile Python sources
+        run: python -m compileall -q backend src notebooks tests scripts
+
+  frontend-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install locked frontend dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+
+  source-package:
+    name: Build consolidated source release ZIP
+    if: ${{ success() && github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fix/') }}
+    needs:
+      - python-safety
+      - frontend-build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out tested commit
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build and verify single source-release ZIP
+        env:
+          RELEASE_CI_STATUS: passed
+        run: python scripts/build_release_package.py
+
+      - name: Upload release ZIP and checksum
+        uses: actions/upload-artifact@v4
+        with:
+          name: MURTAZA_LABS_NIFTY_INTELLIGENCE_SOURCE_RELEASE
+          path: |
+            dist/*.zip
+            dist/*.zip.sha256
+          if-no-files-found: error
+          retention-days: 30

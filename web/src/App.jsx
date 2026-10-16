@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 
-const API = "https://murtaza-labs-nifty-intelligence-3.onrender.com/api";
+const API = (import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api").replace(/\/+$/, "");
 function Sparkline({ prices = [], large = false }) {
   if (prices.length < 2) {
     return <div className="empty-chart">MARKET DATA UNAVAILABLE</div>;
@@ -431,7 +431,7 @@ function ConfidenceRing({ value }) {
     >
       <div>
         <strong>{value.toFixed(2)}%</strong>
-        <small>CONFIDENCE</small>
+        <small>RAW MODEL SCORE</small>
       </div>
     </div>
   );
@@ -529,10 +529,17 @@ export default function App() {
         ]);
 
       if (!dashboardRes.ok) {
-        throw new Error("Backend unavailable");
+        const detail = await dashboardRes.json().catch(() => ({}));
+        throw new Error(
+          detail.detail ||
+            `Dashboard request failed (${dashboardRes.status}).`
+        );
       }
 
       const nextDashboard = await dashboardRes.json();
+      // Clear an old error only after a successful response, before any new
+      // prediction notification is shown below.
+      setMessage("");
 
       // Detect a genuinely new model prediction.
       // The ref avoids stale state inside the 30-second polling loop.
@@ -574,7 +581,18 @@ export default function App() {
       }
     } catch (error) {
       console.error(error);
-      setMessage("BACKEND CONNECTION UNAVAILABLE");
+
+      // Fail closed: never keep rendering an older prediction after the API
+      // rejects a stale artifact or becomes unavailable.
+      setDashboard(null);
+      setMarket([]);
+      setHistory([]);
+      setPipelineStatus(null);
+      setMessage(
+        error instanceof Error
+          ? error.message.toUpperCase()
+          : "BACKEND CONNECTION UNAVAILABLE"
+      );
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -737,18 +755,36 @@ export default function App() {
   const runPipeline = async () => {
     if (pipelineRunning) return;
 
+    // Never bake the backend token into the public Vite bundle or localStorage.
+    // Prompt per action and send it only in an HTTPS request header.
+    const triggerToken = window.prompt(
+      "Enter the backend pipeline trigger token. It will not be saved."
+    );
+    if (!triggerToken) {
+      showMessage("PIPELINE TRIGGER CANCELLED.");
+      return;
+    }
+
     setPipelineRunning(true);
-    showMessage("STARTING PREDICTION PIPELINE...");
+    showMessage("AUTHENTICATING PIPELINE REQUEST...");
 
     try {
       const response = await fetch(
         `${API}/run-pipeline`,
         {
           method: "POST",
+          headers: {
+            "X-Pipeline-Token": triggerToken,
+          },
         }
       );
 
-      const result = await response.json();
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(
+          result.detail || `Pipeline request rejected (${response.status}).`
+        );
+      }
 
       if (result.status === "already_running") {
         showMessage("PIPELINE IS ALREADY RUNNING.");
@@ -813,7 +849,9 @@ export default function App() {
     } catch (error) {
       console.error(error);
       showMessage(
-        "UNABLE TO START PREDICTION PIPELINE."
+        error instanceof Error
+          ? error.message.toUpperCase()
+          : "UNABLE TO START PREDICTION PIPELINE."
       );
       setPipelineRunning(false);
     }
@@ -852,23 +890,23 @@ export default function App() {
   const dayChangePct = Number.isFinite(dashboardDayChange)
     ? dashboardDayChange
     : (Number.isFinite(advanced.dayChangePct) ? advanced.dayChangePct : null);
-  const productionRSI = Number(dashboard?.rsi_14);
-  const productionTrend = Number(dashboard?.trend_regime);
-  const productionVolatility = Number(dashboard?.volatility_regime);
-  const productionRisk = Number(dashboard?.risk_score);
+  const researchRSI = Number(dashboard?.rsi_14);
+  const researchTrend = Number(dashboard?.trend_regime);
+  const researchVolatility = Number(dashboard?.volatility_regime);
+  const researchRisk = Number(dashboard?.risk_score);
 
-  const volatilityLabel = Number.isFinite(productionVolatility)
-    ? productionVolatility >= 1.1
+  const volatilityLabel = Number.isFinite(researchVolatility)
+    ? researchVolatility >= 1.1
       ? "HIGH"
-      : productionVolatility >= 0.65
+      : researchVolatility >= 0.65
       ? "NORMAL"
       : "LOW"
     : "—";
 
-  const riskLabel = Number.isFinite(productionRisk)
-    ? productionRisk > 0.15
+  const riskLabel = Number.isFinite(researchRisk)
+    ? researchRisk > 0.15
       ? "HIGH"
-      : productionRisk < -0.15
+      : researchRisk < -0.15
       ? "LOW"
       : "MODERATE"
     : "—";
@@ -934,16 +972,39 @@ export default function App() {
           )
         );
 
-  if (loading || !dashboard) {
+  if (loading) {
     return (
-      <div className="loading-screen">
+      <div className="loading-screen" role="status" aria-live="polite">
         <div className="loading-mark">ML</div>
-
         <div>
           <strong>MURTAZA LABS</strong>
-          <span>
-            INITIALIZING NIFTY INTELLIGENCE
-          </span>
+          <span>CHECKING RESEARCH DATA AND READINESS</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!dashboard) {
+    return (
+      <div className="loading-screen" role="status" aria-live="polite">
+        <div className="loading-mark">NO</div>
+        <div>
+          <strong>MURTAZA LABS · RESEARCH MODE</strong>
+          <span>NO VERIFIED RESEARCH SIGNAL AVAILABLE</span>
+          <p>
+            The backend has not supplied a current, validated research prediction.
+            The dashboard will not display a stale signal as current.
+          </p>
+          <p><b>TRADING STATUS: NO TRADE · LIVE ORDERS DISABLED</b></p>
+          {message && <p>{message}</p>}
+          <button
+            type="button"
+            className="gold-button"
+            onClick={() => loadData(true)}
+            disabled={refreshing}
+          >
+            {refreshing ? "CHECKING…" : "RETRY DATA CHECK"}
+          </button>
         </div>
       </div>
     );
@@ -1150,7 +1211,7 @@ export default function App() {
 
           <div>
             <span>
-              CONFIDENCE
+              RAW MODEL SCORE
               <strong>
                 {confidence.toFixed(2)}%
               </strong>
@@ -1161,8 +1222,8 @@ export default function App() {
             <i />
 
             <span>
-              MODEL
-              <strong>ONLINE</strong>
+              EXECUTION STATUS
+              <strong>NO TRADE</strong>
             </span>
           </div>
         </section>
@@ -1171,9 +1232,9 @@ export default function App() {
         <section id="command" className="command-center-section">
           <div className="command-header reveal">
             <div>
-              <span>LIVE COMMAND CENTER</span>
+              <span>RESEARCH COMMAND CENTER</span>
               <h2>THE MARKET AT A GLANCE.</h2>
-              <p>Production model output, technical state, market regime and cross-market context in one screen.</p>
+              <p>Research candidate output, technical state, market regime and cross-market context in one screen.</p>
             </div>
             <div className="command-time">
               <span>{marketSession}</span>
@@ -1193,7 +1254,7 @@ export default function App() {
           <div className="command-grid">
             <article className="command-hero-card reveal">
               <div className="command-card-top">
-                <span>PRODUCTION MODEL</span>
+                <span>RESEARCH CANDIDATE</span>
                 <b className={isUp ? "green-text" : "red-text"}>
                   {isUp ? "▲ UP" : "▼ DOWN"}
                 </b>
@@ -1219,10 +1280,10 @@ export default function App() {
             <article className="command-card reveal">
               <span>MODEL STATE</span>
               <div className="command-stat-large">{confidence.toFixed(2)}%</div>
-              <small>Prediction confidence</small>
+              <small>Uncalibrated classifier score</small>
               <div className="command-mini-grid">
-                <div><b>{dashboard.feature_count || 298}</b><span>FEATURES</span></div>
-                <div><b>{dashboard.production_model || "CATBOOST"}</b><span>ENGINE</span></div>
+                <div><b>{dashboard.feature_count ?? "—"}</b><span>FEATURES</span></div>
+                <div><b>{dashboard.research_candidate || "CATBOOST RESEARCH CANDIDATE"}</b><span>ENGINE</span></div>
               </div>
             </article>
 
@@ -1235,8 +1296,8 @@ export default function App() {
               />
               <RegimePill
                 label="MODEL TREND"
-                value={Number.isFinite(productionTrend) ? `${productionTrend > 0 ? "+" : ""}${productionTrend.toFixed(0)}` : "—"}
-                tone={productionTrend > 0 ? "green" : productionTrend < 0 ? "red" : "gold"}
+                value={Number.isFinite(researchTrend) ? `${researchTrend > 0 ? "+" : ""}${researchTrend.toFixed(0)}` : "—"}
+                tone={researchTrend > 0 ? "green" : researchTrend < 0 ? "red" : "gold"}
               />
               <RegimePill label="VOLATILITY" value={volatilityLabel} tone={volatilityLabel === "HIGH" ? "red" : volatilityLabel === "LOW" ? "green" : "gold"} />
               <RegimePill label="RISK" value={riskLabel} tone={riskLabel === "HIGH" ? "red" : riskLabel === "LOW" ? "green" : "gold"} />
@@ -1252,7 +1313,7 @@ export default function App() {
               <div className="technical-matrix">
                 {[
                   ["RSI 5", advanced.rsi5, "number", ""],
-                  ["RSI 14", Number.isFinite(productionRSI) ? productionRSI : advanced.rsi14, "number", ""],
+                  ["RSI 14", Number.isFinite(researchRSI) ? researchRSI : advanced.rsi14, "number", ""],
                   ["RSI 21", advanced.rsi21, "number", ""],
                   ["MACD", advanced.macd, "number", ""],
                   ["SMA 20", advanced.sma20, "price", ""],
@@ -1286,7 +1347,7 @@ export default function App() {
             <article className="command-panel reveal">
               <div className="command-panel-title">
                 <span>CROSS-MARKET</span>
-                <small>PRODUCTION INPUTS</small>
+                <small>RESEARCH INPUTS</small>
               </div>
               <div className="cross-market-grid">
                 {[
@@ -1308,7 +1369,7 @@ export default function App() {
                 ))}
               </div>
               <div className="cross-market-note">
-                <i /> Cross-market features are read from the production prediction payload.
+                <i /> Cross-market features are read from the research prediction payload.
               </div>
             </article>
           </div>
@@ -1333,12 +1394,12 @@ export default function App() {
             <article className="command-panel reveal">
               <div className="command-panel-title">
                 <span>MODEL HEALTH</span>
-                <small>PRODUCTION</small>
+                <small>RESEARCH ONLY</small>
               </div>
               <div className="health-list">
                 {[
-                  ["MODEL ENGINE", dashboard.production_model || "CATBOOST", true],
-                  ["FEATURE COUNT", `${dashboard.feature_count || 298}`, true],
+                  ["MODEL ENGINE", dashboard.research_candidate || "CATBOOST RESEARCH CANDIDATE", true],
+                  ["FEATURE COUNT", `${dashboard.feature_count ?? "—"}`, true],
                   ["TRAINED THROUGH", dashboard.model_trained_through || "—", true],
                   ["DATA POINTS", `${advanced.dataPoints}`, true],
                   ["PREDICTIONS", `${totalPredictions}`, true],
@@ -1427,7 +1488,7 @@ export default function App() {
             <span>SCHEDULER</span>
 
             <strong>
-              15:45 IST
+              16:00 IST
             </strong>
 
             <small>
@@ -1445,7 +1506,7 @@ export default function App() {
           <SectionTitle
             eyebrow="01 · MARKET INTELLIGENCE"
             title="THE MARKET, DISTILLED."
-            description="A live intelligence layer combining price action, technical indicators, external signals and machine-learning predictions."
+            description="A research-only intelligence layer combining price action, technical indicators, external signals and machine-learning predictions. No live orders are enabled."
           />
 
           <div className="market-grid">
@@ -1472,7 +1533,7 @@ export default function App() {
                   : "prediction-down"
               } ${newPrediction ? "prediction-updated" : ""} reveal`}
             >
-              <span>MODEL PREDICTION</span>
+              <span>RESEARCH DIRECTION</span>
 
               {newPrediction && (
                 <b className="new-prediction-badge">
@@ -1486,17 +1547,17 @@ export default function App() {
 
               <small>
                 {isUp
-                  ? "BULLISH SIGNAL"
-                  : "BEARISH SIGNAL"}
+                  ? "UP-MOVE ESTIMATE"
+                  : "DOWN-MOVE ESTIMATE"}
               </small>
 
               <div className="prediction-line">
-                LIVE DIRECTIONAL SIGNAL
+                PAPER RESEARCH ONLY · NO LIVE TRADES
               </div>
             </article>
 
             <article className="metric-card reveal">
-              <span>CONFIDENCE</span>
+              <span>RAW MODEL SCORE</span>
 
               <ConfidenceRing
                 value={confidence}
@@ -1620,13 +1681,13 @@ export default function App() {
             <div className="model-main reveal">
               <div className="model-status">
                 <i />
-                MODEL ONLINE
+                RESEARCH CANDIDATE · NO TRADE
               </div>
 
               <h3>
                 CATBOOST
                 <span>
-                  PRODUCTION CLASSIFICATION ENGINE
+                  RESEARCH CLASSIFIER · NOT PRODUCTION APPROVED
                 </span>
               </h3>
 
@@ -1657,7 +1718,7 @@ export default function App() {
                   [
                     "04",
                     "CatBoost",
-                    "Production Classification",
+                    "Research Classification",
                   ],
                   [
                     "05",
@@ -1692,7 +1753,7 @@ export default function App() {
             <div className="model-side">
               <div className="model-stat reveal">
                 <span>
-                  CURRENT SIGNAL
+                  RESEARCH DIRECTION
                 </span>
 
                 <strong
@@ -1711,14 +1772,14 @@ export default function App() {
               </div>
 
               <div className="model-stat reveal">
-                <span>CONFIDENCE</span>
+                <span>RAW MODEL SCORE</span>
 
                 <strong>
                   {confidence.toFixed(2)}%
                 </strong>
 
                 <small>
-                  Model confidence
+                  Uncalibrated model score
                 </small>
               </div>
 
@@ -1744,9 +1805,9 @@ export default function App() {
             <div className="intelligence-header">
               <div>
                 <span>03 · PREDICTION INTELLIGENCE</span>
-                <h3>WHY THE MARKET SIGNAL LOOKS THIS WAY.</h3>
+                <h3>WHY THE MODEL LEANS THIS WAY.</h3>
                 <p>
-                  Live technical and market conditions calculated from
+                  Research-only technical and market conditions calculated from
                   the latest available NIFTY 50 data.
                 </p>
               </div>
@@ -1759,7 +1820,7 @@ export default function App() {
                   {isUp ? "▲ UP" : "▼ DOWN"}
                 </strong>
                 <span>
-                  {confidence.toFixed(2)}% CONFIDENCE
+                  {confidence.toFixed(2)}% RAW SCORE
                 </span>
               </div>
             </div>
@@ -1964,7 +2025,7 @@ export default function App() {
 
             <article className="indicator-stack reveal">
               {[
-                ["RSI 14", Number.isFinite(productionRSI) ? productionRSI : advanced.rsi14, 100, productionRSI >= 70 ? "red" : productionRSI <= 30 ? "green" : "gold"],
+                ["RSI 14", Number.isFinite(researchRSI) ? researchRSI : advanced.rsi14, 100, researchRSI >= 70 ? "red" : researchRSI <= 30 ? "green" : "gold"],
                 ["BB POSITION", advanced.bbPosition, 100, "gold"],
                 ["STOCHASTIC", advanced.stochastic, 100, advanced.stochastic > 80 ? "red" : advanced.stochastic < 20 ? "green" : "gold"],
                 ["VOLUME ACTIVITY", advanced.volumeRatio != null ? Math.min(100, advanced.volumeRatio * 50) : null, 100, "green"],
@@ -2141,7 +2202,7 @@ export default function App() {
               [
                 "03",
                 "MACHINE LEARNING",
-                "CatBoost production directional classification.",
+                "CatBoost research-only directional classification.",
               ],
               [
                 "04",
@@ -2279,7 +2340,7 @@ export default function App() {
                         </strong>
 
                         <span>
-                          CONFIDENCE
+                          RAW MODEL SCORE
                         </span>
 
                         <b>

@@ -16,6 +16,7 @@ MODELS = BASE / "models"
 sys.path.insert(0, str(BASE / "src"))
 
 from model_features_ultimate import build_features
+from readiness_checks import target_from_next_returns
 
 EXT_PATH = DATA / "nifty50_external_features.csv"
 LIVE_PATH = DATA / "live_market_data.csv"
@@ -28,14 +29,11 @@ def load_data():
     live = pd.read_csv(LIVE_PATH, parse_dates=["Date"])
     live = live.drop_duplicates("Date").set_index("Date").sort_index()
 
-    # Prefer the prepared external dataset, then add any newer live NIFTY rows.
-    if len(ext):
-        newer = live[live.index > ext.index.max()]
-        raw = pd.concat([ext, newer], axis=0, sort=False)
-    else:
-        raw = live
-
-    return raw.sort_index()
+    if live.empty:
+        return ext.sort_index()
+    # Fresh/live data should win on overlapping dates; retain the external
+    # dataset for older history and for any fields missing from the live source.
+    return live.combine_first(ext).sort_index() if not ext.empty else live.sort_index()
 
 
 def add_safe_cross_market_features(df):
@@ -202,12 +200,21 @@ extra = (
 features = pd.concat([features, extra], axis=1)
 features = features.loc[:, ~features.columns.duplicated()]
 
-close = pd.to_numeric(
+open_prices = pd.to_numeric(
+    raw_enriched["Open"], errors="coerce"
+).reindex(features.index)
+close_prices = pd.to_numeric(
     raw_enriched["Close"], errors="coerce"
 ).reindex(features.index)
 
-next_return = close.shift(-1) / close - 1
-target = (next_return > 0).astype(int)
+# The signal is generated only after session t closes, so it cannot honestly
+# enter at close[t]. Define the target as the next session's open-to-close
+# return, matching a paper trade entered at the next open and exited at that
+# session's close. The last row has no known future label and stays missing.
+next_session_open = open_prices.shift(-1)
+next_session_close = close_prices.shift(-1)
+next_return = next_session_close / next_session_open - 1
+target = target_from_next_returns(next_return)
 
 feature_cols = [
     c for c in features.columns
@@ -251,7 +258,7 @@ bundle = {
     "trained_through": str(X.index.max().date()),
     "training_rows": int(len(X)),
     "feature_count": int(len(feature_cols)),
-    "target": "next_trading_day_direction",
+    "target": "next_session_open_to_close_direction",
     "detected_sources": detected_sources,
     "safe_lagged_sources": [
         "SP500",
@@ -263,16 +270,25 @@ bundle = {
         "INDIA_VIX",
         "BANKNIFTY",
     ],
-    "architecture": "CATBOOST_PRODUCTION_SAFE_REGIME_CROSS_MARKET",
+    "architecture": "CATBOOST_RESEARCH_CANDIDATE_SAFE_REGIME_CROSS_MARKET",
+    "trading_mode": "RESEARCH_ONLY",
+    "production_eligible": False,
+    "probabilities_calibrated": False,
+    "validation_status": "NOT_PROMOTED",
 }
 
-model_path = MODELS / "nifty50_production_model.pkl"
-meta_path = MODELS / "nifty50_production_meta.json"
+MODELS.mkdir(parents=True, exist_ok=True)
+model_path = MODELS / "nifty50_research_candidate.pkl"
+meta_path = MODELS / "nifty50_research_candidate_meta.json"
 
 joblib.dump(bundle, model_path)
 
 meta = {
     "architecture": bundle["architecture"],
+    "trading_mode": bundle["trading_mode"],
+    "production_eligible": bundle["production_eligible"],
+    "probabilities_calibrated": bundle["probabilities_calibrated"],
+    "validation_status": bundle["validation_status"],
     "trained_through": bundle["trained_through"],
     "training_rows": bundle["training_rows"],
     "feature_count": bundle["feature_count"],
@@ -292,12 +308,12 @@ meta_path.write_text(
 )
 
 print("=" * 72)
-print("PRODUCTION MODEL BUILT")
+print("RESEARCH CANDIDATE MODEL BUILT (NOT PROMOTED)")
 print("=" * 72)
 print(f"Training rows : {len(X)}")
 print(f"Features      : {len(feature_cols)}")
 print(f"Trained thru  : {X.index.max().date()}")
-print("Model         : CatBoost")
+print("Model         : CatBoost (research candidate)")
 print("Architecture  : Production-safe regime + cross-market")
 print()
 print("Detected sources:")
