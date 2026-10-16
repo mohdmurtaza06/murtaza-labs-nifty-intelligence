@@ -21,11 +21,11 @@ from readiness_checks import (
     validate_probability_pair,
 )
 
-MODEL_PATH = MODELS / "nifty50_production_model.pkl"
+MODEL_PATH = MODELS / "nifty50_research_candidate.pkl"
 LIVE_PATH = DATA / "live_market_data.csv"
 EXT_PATH = DATA / "nifty50_external_features.csv"
-OUTPUT_JSON = DATA / "latest_production_prediction.json"
-OUTPUT_CSV = DATA / "latest_production_prediction.csv"
+OUTPUT_JSON = DATA / "latest_research_prediction.json"
+OUTPUT_CSV = DATA / "latest_research_prediction.csv"
 
 
 def run_live_data_update():
@@ -191,8 +191,8 @@ def get_indicator(row, names):
 
 if not MODEL_PATH.exists():
     raise FileNotFoundError(
-        f"Production model not found: {MODEL_PATH}\n"
-        "Run 27_build_production_model.py first."
+        f"Research candidate not found: {MODEL_PATH}\n"
+        "Run 27_build_production_model.py to create a research-only candidate."
     )
 
 if not run_live_data_update():
@@ -349,6 +349,9 @@ result = {
     "market_data_date": str(pd.Timestamp(market_data_date).date()),
     "market_data_age_days": int(market_data_age_days),
     "target_horizon": bundle["target"],
+    "trading_mode": "RESEARCH_ONLY",
+    "production_eligible": False,
+    "live_orders_enabled": False,
     "probabilities_calibrated": bool(bundle.get("probabilities_calibrated", False)),
     "prediction": prediction,
     "probability_up": round(prob_up, 6),
@@ -385,7 +388,7 @@ pd.DataFrame([result]).to_csv(
 
 print()
 print("=" * 72)
-print("LIVE PRODUCTION PREDICTION")
+print("RESEARCH-ONLY PREDICTION (NO LIVE ORDERS)")
 print("=" * 72)
 print(f"Date             : {result['prediction_date']}")
 print(f"NIFTY 50         : {result['nifty_close']:.2f}")
