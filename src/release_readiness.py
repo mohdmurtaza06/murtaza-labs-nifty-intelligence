@@ -26,6 +26,13 @@ def _gate(status: str, reason: str, **extra: Any) -> dict[str, Any]:
     return {"status": status, "reason": reason, **extra}
 
 
+def _safe_int(value: Any, fallback: int = -1) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError, OverflowError):
+        return fallback
+
+
 def _read_json(path: Path) -> dict[str, Any] | None:
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
@@ -113,9 +120,9 @@ def _canonical_model_gate(base: Path) -> dict[str, Any]:
         return _gate("FAIL", "Manifest must contain exactly 172 ordered feature names.")
     if len(set(names)) != len(names):
         return _gate("FAIL", "Feature manifest contains duplicate names.")
-    if declared_count is not None and int(declared_count) != EXPECTED_FEATURE_COUNT:
+    if declared_count is not None and _safe_int(declared_count) != EXPECTED_FEATURE_COUNT:
         return _gate("FAIL", "Manifest's declared feature count is not 172.")
-    if status and status != "CANONICAL":
+    if status != "CANONICAL":
         return _gate("FAIL", f"Manifest status is {status}, not CANONICAL.")
 
     schema_hash = (
@@ -146,7 +153,7 @@ def _canonical_model_gate(base: Path) -> dict[str, Any]:
             manifest_feature_count=len(names),
             manifest_hash=schema_hash,
         )
-    if int(meta.get("feature_count", -1)) != EXPECTED_FEATURE_COUNT:
+    if _safe_int(meta.get("feature_count")) != EXPECTED_FEATURE_COUNT:
         return _gate("FAIL", "Model metadata feature count does not match the canonical 172-feature manifest.")
     meta_hash = meta.get("feature_hash") or meta.get("schema_hash") or meta.get("feature_manifest_hash")
     if not schema_hash or not meta_hash or str(meta_hash) != str(schema_hash):
@@ -169,7 +176,7 @@ def _calibration_gate(base: Path) -> dict[str, Any]:
     meta = _read_json(path)
     if meta is None:
         return _gate("FAIL", "Calibration metadata is not valid JSON.")
-    if int(meta.get("feature_count", -1)) != EXPECTED_FEATURE_COUNT:
+    if _safe_int(meta.get("feature_count")) != EXPECTED_FEATURE_COUNT:
         return _gate("FAIL", "Calibration metadata feature count does not match the canonical 172-feature contract.")
     calibration = meta.get("calibration")
     samples = meta.get("oos_samples")
