@@ -48,6 +48,15 @@ from readiness_checks import (
 )
 
 def load_data():
+    if not LIVE_PATH.exists():
+        raise RuntimeError(
+            f"Fresh market-data file is required for validation: {LIVE_PATH}"
+        )
+    if not EXT_PATH.exists():
+        raise RuntimeError(
+            f"Historical external-feature file is missing: {EXT_PATH}"
+        )
+
     ext = pd.read_csv(EXT_PATH, parse_dates=["Date"])
     ext = ext.drop_duplicates("Date").set_index("Date").sort_index()
 
@@ -55,10 +64,20 @@ def load_data():
     live = live.drop_duplicates("Date").set_index("Date").sort_index()
 
     if live.empty:
-        return ext.sort_index()
-    # Fresh/live data should win on overlapping dates; retain the external
-    # dataset for older history and for any fields missing from the live source.
-    return live.combine_first(ext).sort_index() if not ext.empty else live.sort_index()
+        raise RuntimeError("Live market-data file is empty; validation aborted.")
+
+    # Check the actual refreshed data file before merging historical coverage.
+    # An old external file must never make a stale live file appear fresh.
+    validate_market_data_freshness(
+        live.index.max(),
+        require_latest_completed_session=True,
+    )
+
+    # Restrict historical rows to dates covered by the fresh NIFTY observations.
+    # Fresh/live values take precedence for overlapping dates and columns.
+    ext = ext.loc[ext.index <= live.index.max()]
+    raw = live.combine_first(ext).sort_index() if not ext.empty else live.sort_index()
+    return raw
 
 
 def add_safe_cross_market_features(df):
