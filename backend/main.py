@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pathlib import Path
@@ -7,6 +7,7 @@ from datetime import datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 import os
+import hmac
 import json
 import pandas as pd
 import subprocess
@@ -1263,7 +1264,27 @@ def run_pipeline_background(
 # ============================================================
 
 @app.post("/api/run-pipeline")
-def run_pipeline():
+def run_pipeline(request: Request):
+    # This endpoint launches a resource-consuming subprocess. CORS does not
+    # authenticate callers, so require a server-side token and a matching
+    # request header. If no token is configured, the manual endpoint stays
+    # disabled; the internal scheduled job remains separate.
+    configured_token = os.environ.get("PIPELINE_TRIGGER_TOKEN", "").strip()
+    if not configured_token:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Manual pipeline triggering is disabled. Configure "
+                "PIPELINE_TRIGGER_TOKEN on the backend to enable it."
+            ),
+        )
+
+    supplied_token = request.headers.get("X-Pipeline-Token", "")
+    if not hmac.compare_digest(supplied_token, configured_token):
+        raise HTTPException(
+            status_code=403,
+            detail="Missing or invalid pipeline trigger token.",
+        )
 
     if pipeline_status["running"]:
 
