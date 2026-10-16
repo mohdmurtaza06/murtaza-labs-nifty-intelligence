@@ -33,7 +33,7 @@ if PRODUCTION_PREDICTION_FILE.exists():
 
     required = [
         "prediction_date", "nifty_close", "prediction", "probability_up",
-        "probability_down", "confidence",
+        "probability_down", "confidence", "target_horizon",
     ]
     missing = [key for key in required if key not in production]
     if missing:
@@ -50,6 +50,7 @@ if PRODUCTION_PREDICTION_FILE.exists():
         "Probability_UP": production["probability_up"],
         "Probability_DOWN": production["probability_down"],
         "Confidence": production["confidence"],
+        "Target_Horizon": production["target_horizon"],
         "Signal": "BULLISH" if prediction == "UP" else "BEARISH",
     }])
     source = "production"
@@ -82,6 +83,15 @@ if TRACKER_FILE.exists():
         history["Prediction_Date"]
     )
 
+    # Historical rows created before target horizon was recorded cannot be
+    # silently mixed with new execution assumptions.
+    if "Target_Horizon" not in history.columns:
+        history["Target_Horizon"] = "legacy_unknown"
+    else:
+        history["Target_Horizon"] = history["Target_Horizon"].fillna(
+            "legacy_unknown"
+        )
+
 else:
 
     history = pd.DataFrame(
@@ -92,6 +102,7 @@ else:
             "Probability_UP",
             "Probability_DOWN",
             "Confidence",
+            "Target_Horizon",
             "Signal",
             "Actual_Next_Day",
             "Correct"
@@ -131,6 +142,10 @@ new_record = pd.DataFrame({
         current["Confidence"].iloc[0]
     ],
 
+    "Target_Horizon": [
+        current["Target_Horizon"].iloc[0]
+    ],
+
     "Signal": [
         current["Signal"].iloc[0]
     ],
@@ -152,8 +167,12 @@ new_record = pd.DataFrame({
 if not history.empty:
 
     already_exists = (
-        history["Prediction_Date"]
-        == prediction_date
+        (
+            history["Prediction_Date"] == prediction_date
+        )
+        & (
+            history["Target_Horizon"] == current["Target_Horizon"].iloc[0]
+        )
     ).any()
 
 else:
