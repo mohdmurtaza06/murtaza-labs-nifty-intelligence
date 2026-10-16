@@ -38,16 +38,26 @@ print(
     f"\nTotal predictions recorded: {len(history)}"
 )
 
+EXPECTED_TARGET_HORIZON = "next_session_open_to_close_direction"
+if "Target_Horizon" not in history.columns:
+    history["Target_Horizon"] = "legacy_unknown"
+
 
 # ============================================================
-# KEEP ONLY VERIFIED PREDICTIONS
+# KEEP ONLY VERIFIED PREDICTIONS FOR THE CURRENT TARGET
 # ============================================================
 
+# Historical close-to-close results are not comparable with the supported
+# next-session open-to-close execution target. Exclude them explicitly.
 verified = history[
-    history["Actual_Next_Day"].isin(
-        ["UP", "DOWN"]
-    )
+    (history["Target_Horizon"] == EXPECTED_TARGET_HORIZON)
+    & history["Actual_Next_Day"].isin(["UP", "DOWN"])
 ].copy()
+
+excluded_horizon = int(
+    (history["Target_Horizon"] != EXPECTED_TARGET_HORIZON).sum()
+)
+print(f"Records excluded for incompatible/unknown target horizon: {excluded_horizon}")
 
 
 if verified.empty:
