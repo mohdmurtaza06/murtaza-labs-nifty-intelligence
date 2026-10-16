@@ -1,6 +1,7 @@
 """Regression tests for fail-closed prediction safety checks."""
 import unittest
-from datetime import date
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 
@@ -49,6 +50,33 @@ class FreshnessTests(unittest.TestCase):
             validate_market_data_freshness(
                 "2026-10-17", now=date(2026, 10, 16), max_age_days=4
             )
+
+
+class NSESessionFreshnessTests(unittest.TestCase):
+    def test_friday_bar_is_stale_after_monday_close(self):
+        monday_after_close = datetime(
+            2026, 10, 19, 16, 30, tzinfo=ZoneInfo("Asia/Kolkata")
+        )
+        with self.assertRaisesRegex(ValueError, "latest completed NSE session"):
+            validate_market_data_freshness(
+                "2026-10-16",
+                now=monday_after_close,
+                require_latest_completed_session=True,
+            )
+
+    def test_latest_completed_session_passes(self):
+        monday_after_close = datetime(
+            2026, 10, 19, 16, 30, tzinfo=ZoneInfo("Asia/Kolkata")
+        )
+        self.assertEqual(
+            validate_market_data_freshness(
+                "2026-10-19",
+                now=monday_after_close,
+                require_latest_completed_session=True,
+            ),
+            0,
+        )
+
 
 
 class ProbabilityTests(unittest.TestCase):
