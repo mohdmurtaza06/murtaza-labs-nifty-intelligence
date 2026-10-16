@@ -11,13 +11,20 @@ Create a virtual environment, install `requirements.txt`, then start the API:
 python -m uvicorn backend.main:app --reload
 ```
 
-In another terminal, start the dashboard:
+In another terminal, configure and start the dashboard:
 
 ```powershell
 Set-Location web
+Copy-Item .env.example .env.local
 npm.cmd install
 npm.cmd run dev
 ```
+
+The frontend reads `VITE_API_BASE_URL` at build/start time. The checked-in
+`web/.env.example` points to the local API at
+`http://127.0.0.1:8000/api`. For any future hosted frontend, configure this
+variable with the explicitly approved API URL; do not point a release build at
+an unverified service.
 
 ## Daily research-signal flow
 
@@ -43,6 +50,12 @@ Machine-readable probabilities (`probability_up`, `probability_down`, and
 
 ## Safety checks and current trading status
 
+The API has separate liveness and release-readiness reporting. Open
+`GET /api/health` to confirm the process responds and `GET /api/readiness` to
+see the evidence gates. The release readiness route deliberately remains
+`NOT_READY`; the service being online is not approval to trade. Gate statuses
+must only be updated after artifacts are independently inspected.
+
 The project now includes shared fail-closed checks in `src/readiness_checks.py`:
 
 - next-session labels with missing/infinite outcomes stay missing and are excluded from training;
@@ -58,14 +71,14 @@ keep the dependency updated and verify ad-hoc/exceptional exchange holidays.
 If the calendar cannot be loaded or the latest bar does not match the expected
 completed session, prediction publication is blocked.
 
-The production training target is defined as the **next session's open-to-close return direction**, because the prediction is generated after today's close and cannot be executed at today's already-known closing price. Retrain models after pulling this change; models trained under the previous target definition are not interchangeable.
+The research training target is defined as the **next session's open-to-close return direction**, because the prediction is generated after today's close and cannot be executed at today's already-known closing price. Retrain models after pulling this change; models trained under the previous target definition are not interchangeable.
 
 ### Tests
 
 From the repository root, run:
 
 ```powershell
-python -m pip install numpy pandas
+python -m pip install numpy pandas fastapi pandas-market-calendars
 python -m unittest discover -s tests -v
 python -m compileall -q backend src notebooks tests
 ```
