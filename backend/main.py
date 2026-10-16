@@ -52,7 +52,7 @@ pipeline_status = {
 }
 
 # Prevent the automatic scheduler from triggering the same
-# pipeline multiple times during the 15:45-15:50 window.
+# pipeline multiple times during the 16:00-15:50 window.
 last_automatic_trigger_date = None
 
 
@@ -121,7 +121,7 @@ async def lifespan(app: FastAPI):
     print("=" * 70)
     print("Automatic daily pipeline scheduler: ENABLED")
     print("Timezone: Asia/Kolkata")
-    print("Scheduled pipeline time: 15:45 IST")
+    print("Scheduled pipeline time: 16:00 IST")
     print("=" * 70)
 
     scheduler_thread = threading.Thread(
@@ -242,6 +242,7 @@ def get_production_prediction_data():
         validate_market_data_freshness(
             market_data_date,
             max_age_days=4,
+            require_latest_completed_session=True,
         )
         probability_up, probability_down = validate_probability_pair(
             data.get("probability_up"),
@@ -604,6 +605,7 @@ def get_dashboard_data():
         validate_market_data_freshness(
             latest.get("Prediction_Date", ""),
             max_age_days=4,
+            require_latest_completed_session=True,
         )
         legacy_up, legacy_down = validate_probability_pair(
             latest.get("Probability_UP"),
@@ -1493,13 +1495,13 @@ def automatic_pipeline_scheduler():
 
     Schedule:
         Monday-Friday
-        15:45 IST
+        16:00 IST
 
     The scheduler checks every 20 seconds.
     """
 
-    scheduled_hour = 15
-    scheduled_minute = 45
+    scheduled_hour = 16
+    scheduled_minute = 0
 
     print()
     print(
@@ -1542,7 +1544,7 @@ def automatic_pipeline_scheduler():
                 ).time()
 
                 # ------------------------------------------------
-                # Trigger during the 15:45-15:50 window.
+                # Trigger during the 16:00-15:50 window.
                 # ------------------------------------------------
 
                 if (
