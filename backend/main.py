@@ -590,6 +590,9 @@ def health():
     return {
 
         "status": "online",
+        "liveness": "UP",
+        "readiness_status": "NOT_READY",
+        "trade_status": "NO_TRADE",
 
         "service":
             "Murtaza Labs NIFTY Intelligence API",
