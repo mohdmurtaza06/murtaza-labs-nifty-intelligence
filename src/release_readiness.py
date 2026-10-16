@@ -12,7 +12,10 @@ from typing import Any
 
 import pandas as pd
 
-from readiness_checks import validate_market_data_freshness
+try:
+    from .readiness_checks import validate_market_data_freshness
+except ImportError:  # Support direct imports when the src directory is on sys.path.
+    from readiness_checks import validate_market_data_freshness
 
 EXPECTED_FEATURE_COUNT = 172
 EXPECTED_TARGET_HORIZON = "next_session_open_to_close_direction"
