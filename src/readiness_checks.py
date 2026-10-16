@@ -1,10 +1,10 @@
 """Small, dependency-light safety checks shared by production scripts and tests.
 
-These guards are operational safeguards, not evidence that a trading strategy is
-profitable. A market-calendar-aware freshness check should replace the simple
-calendar-age bound when an authoritative NSE session calendar is integrated.
+These guards do not prove a strategy profitable. Production callers should
+require NSE-session freshness; plain calendar-age checking is available for
+unit tests and non-production tooling.
 """
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import numpy as np
@@ -14,7 +14,7 @@ IST = ZoneInfo("Asia/Kolkata")
 
 
 def target_from_next_returns(next_returns: pd.Series) -> pd.Series:
-    """Convert next-session returns to labels without inventing a final label.
+    """Convert next-session returns to labels without inventing missing labels.
 
     Positive return -> 1 (UP); zero/negative return -> 0 (not UP).
     Missing/infinite returns remain NaN and must be excluded from training.
@@ -35,8 +35,45 @@ def _to_date(value) -> date:
         return value.date()
     if isinstance(value, date):
         return value
-    # ISO dates and ISO timestamps both begin with YYYY-MM-DD.
     return date.fromisoformat(str(value).strip()[:10])
+
+
+def _last_completed_nse_session(current: datetime) -> date:
+    """Resolve the latest fully completed NSE equity session from its calendar."""
+    try:
+        import pandas_market_calendars as mcal
+    except ImportError as exc:
+        raise ValueError(
+            "NSE session-calendar dependency is unavailable; refusing to "
+            "declare market data fresh."
+        ) from exc
+
+    today = current.astimezone(IST).date()
+    try:
+        calendar = mcal.get_calendar("NSE")
+        schedule = calendar.schedule(
+            start_date=(today - timedelta(days=45)).isoformat(),
+            end_date=today.isoformat(),
+        )
+    except Exception as exc:
+        raise ValueError(
+            f"Unable to resolve the NSE session calendar: {exc}"
+        ) from exc
+
+    if schedule.empty or "market_close" not in schedule.columns:
+        raise ValueError("NSE session calendar returned no usable market schedule.")
+
+    market_closes = pd.to_datetime(schedule["market_close"], utc=True).dt.tz_convert(IST)
+    current_ts = pd.Timestamp(current)
+    if current_ts.tzinfo is None:
+        current_ts = current_ts.tz_localize(IST)
+    else:
+        current_ts = current_ts.tz_convert(IST)
+
+    completed = schedule.loc[market_closes <= current_ts]
+    if completed.empty:
+        raise ValueError("No completed NSE session could be resolved.")
+    return pd.Timestamp(completed.index[-1]).date()
 
 
 def validate_market_data_freshness(
@@ -44,13 +81,15 @@ def validate_market_data_freshness(
     *,
     now=None,
     max_age_days: int = 4,
+    require_latest_completed_session: bool = False,
 ) -> int:
-    """Reject missing/future/old observations; return calendar age in days.
+    """Reject missing/future/old observations.
 
-    The four-day default tolerates a normal Friday-to-Monday gap. It is a
-    conservative stale-data guard, not a substitute for the official NSE
-    trading calendar. Extended market holidays can require a deliberate,
-    documented override rather than silently accepting stale data.
+    If require_latest_completed_session is true, the observed date must equal
+    the last fully completed session according to pandas-market-calendars'
+    NSE calendar. This avoids accepting Friday's bar as current on Monday after
+    the exchange closes. The calendar is package-shipped, not a live NSE feed,
+    so operators should keep it updated and verify exceptional/adhoc holidays.
     """
     if latest_date is None or str(latest_date).strip() == "":
         raise ValueError("Market data has no observation date.")
@@ -60,19 +99,30 @@ def validate_market_data_freshness(
     observed = _to_date(latest_date)
 
     if now is None:
-        today = datetime.now(IST).date()
+        current = datetime.now(IST)
     elif isinstance(now, datetime):
         current = now.replace(tzinfo=IST) if now.tzinfo is None else now.astimezone(IST)
-        today = current.date()
     else:
-        today = _to_date(now)
+        current = datetime.combine(_to_date(now), datetime.min.time(), tzinfo=IST)
 
+    today = current.date()
     age_days = (today - observed).days
     if age_days < 0:
         raise ValueError(
             f"Market data date {observed.isoformat()} is in the future "
             f"relative to {today.isoformat()}."
         )
+
+    if require_latest_completed_session:
+        expected = _last_completed_nse_session(current)
+        if observed != expected:
+            relation = "older than" if observed < expected else "newer than"
+            raise ValueError(
+                f"Market data is not current: observed {observed.isoformat()} is "
+                f"{relation} the latest completed NSE session {expected.isoformat()}."
+            )
+        return age_days
+
     if age_days > max_age_days:
         raise ValueError(
             f"Market data is stale: latest observation {observed.isoformat()} "
