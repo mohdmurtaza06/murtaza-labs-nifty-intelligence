@@ -52,8 +52,8 @@ class ReadinessEndpointTests(unittest.TestCase):
         self.assertEqual(
             value["gates"]["prospective_paper_signals"]["required_count"], 200
         )
-        self.assertIsNone(
-            value["gates"]["prospective_paper_signals"]["verified_count"]
+        self.assertEqual(
+            value["gates"]["prospective_paper_signals"]["verified_count"], 0
         )
         self.assertEqual(value["gates"]["real_money_approval"]["status"], "NOT_APPROVED")
 
