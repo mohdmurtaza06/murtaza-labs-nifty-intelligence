@@ -170,29 +170,25 @@ app.add_middleware(
 # ============================================================
 
 def parse_bool(value):
-
+    """Parse boolean fields after CSV round-trips, including 1.0 and 0.0."""
     if pd.isna(value):
         return None
 
     if isinstance(value, bool):
         return value
 
+    if isinstance(value, (int, float)):
+        if value == 1:
+            return True
+        if value == 0:
+            return False
+        return None
+
     value = str(value).strip().lower()
-
-    if value in [
-        "true",
-        "1",
-        "yes"
-    ]:
+    if value in {"true", "1", "1.0", "yes"}:
         return True
-
-    if value in [
-        "false",
-        "0",
-        "no"
-    ]:
+    if value in {"false", "0", "0.0", "no"}:
         return False
-
     return None
 
 
