@@ -232,7 +232,11 @@ def _expected_calibration_error(y_true, probability, bins=10) -> float:
 
 
 def main():
-    if REPORT_FILE.exists() and os.environ.get("ALLOW_HOLDOUT_REUSE", "").lower() != "true":
+    prior_report_exists = REPORT_FILE.exists()
+    holdout_reuse_authorized = (
+        os.environ.get("ALLOW_HOLDOUT_REUSE", "").lower() == "true"
+    )
+    if prior_report_exists and not holdout_reuse_authorized:
         raise SystemExit(
             f"Refusing to overwrite prior holdout report: {REPORT_FILE}. "
             "Use a newly registered holdout for a genuine retest. "
@@ -415,6 +419,8 @@ def main():
             "start": str(pd.Timestamp(holdout_index.min()).date()),
             "end": str(pd.Timestamp(holdout_index.max()).date()),
             "rows": int(len(holdout_index)),
+            "is_untouched": not prior_report_exists,
+            "reuse_authorized_for_this_run": holdout_reuse_authorized,
             "probabilities_calibrated_on_separate_earlier_slice": True,
         },
         "model": {
@@ -452,10 +458,15 @@ def main():
                 float((strategy_net[positions] > 0).mean() * 100) if trades else None
             ),
         },
-        "paper_trading_gate": "PASS_FOR_PAPER_TRADING_ONLY" if paper_gate_passed else "HOLD_NO_TRADE",
+        "paper_trading_gate": (
+            "PASS_FOR_PAPER_TRADING_ONLY"
+            if paper_gate_passed and not prior_report_exists
+            else "HOLD_NO_TRADE"
+        ),
         "paper_gate_checks": gates,
         "prospective_paper_observations_closed": 0,
         "production_eligible": False,
+        "holdout_reuse_invalidates_gate": bool(prior_report_exists),
         "live_orders_enabled": False,
         "real_money_approval": "NO",
         "note": (
