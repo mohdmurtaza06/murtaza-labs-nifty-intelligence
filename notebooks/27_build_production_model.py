@@ -273,16 +273,25 @@ bundle = {
         "INDIA_VIX",
         "BANKNIFTY",
     ],
-    "architecture": "CATBOOST_PRODUCTION_SAFE_REGIME_CROSS_MARKET",
+    "architecture": "CATBOOST_RESEARCH_CANDIDATE_SAFE_REGIME_CROSS_MARKET",
+    "trading_mode": "RESEARCH_ONLY",
+    "production_eligible": False,
+    "probabilities_calibrated": False,
+    "validation_status": "NOT_PROMOTED",
 }
 
-model_path = MODELS / "nifty50_production_model.pkl"
-meta_path = MODELS / "nifty50_production_meta.json"
+MODELS.mkdir(parents=True, exist_ok=True)
+model_path = MODELS / "nifty50_research_candidate.pkl"
+meta_path = MODELS / "nifty50_research_candidate_meta.json"
 
 joblib.dump(bundle, model_path)
 
 meta = {
     "architecture": bundle["architecture"],
+    "trading_mode": bundle["trading_mode"],
+    "production_eligible": bundle["production_eligible"],
+    "probabilities_calibrated": bundle["probabilities_calibrated"],
+    "validation_status": bundle["validation_status"],
     "trained_through": bundle["trained_through"],
     "training_rows": bundle["training_rows"],
     "feature_count": bundle["feature_count"],
@@ -302,12 +311,12 @@ meta_path.write_text(
 )
 
 print("=" * 72)
-print("PRODUCTION MODEL BUILT")
+print("RESEARCH CANDIDATE MODEL BUILT (NOT PROMOTED)")
 print("=" * 72)
 print(f"Training rows : {len(X)}")
 print(f"Features      : {len(feature_cols)}")
 print(f"Trained thru  : {X.index.max().date()}")
-print("Model         : CatBoost")
+print("Model         : CatBoost (research candidate)")
 print("Architecture  : Production-safe regime + cross-market")
 print()
 print("Detected sources:")
