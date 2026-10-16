@@ -579,7 +579,18 @@ export default function App() {
       }
     } catch (error) {
       console.error(error);
-      setMessage("BACKEND CONNECTION UNAVAILABLE");
+
+      // Fail closed: never keep rendering an older prediction after the API
+      // rejects a stale artifact or becomes unavailable.
+      setDashboard(null);
+      setMarket([]);
+      setHistory([]);
+      setPipelineStatus(null);
+      setMessage(
+        error instanceof Error
+          ? error.message.toUpperCase()
+          : "BACKEND CONNECTION UNAVAILABLE"
+      );
     } finally {
       setLoading(false);
       setRefreshing(false);
