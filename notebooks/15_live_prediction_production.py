@@ -16,6 +16,10 @@ MODELS = BASE / "models"
 sys.path.insert(0, str(BASE / "src"))
 
 from model_features_ultimate import build_features
+from readiness_checks import (
+    validate_market_data_freshness,
+    validate_probability_pair,
+)
 
 MODEL_PATH = MODELS / "nifty50_production_model.pkl"
 LIVE_PATH = DATA / "live_market_data.csv"
@@ -191,7 +195,11 @@ if not MODEL_PATH.exists():
         "Run 27_build_production_model.py first."
     )
 
-run_live_data_update()
+if not run_live_data_update():
+    raise RuntimeError(
+        "Market-data refresh failed. Refusing to publish a prediction "
+        "from potentially stale data."
+    )
 
 bundle = joblib.load(MODEL_PATH)
 model = bundle["model"]
@@ -199,6 +207,16 @@ feature_cols = bundle["feature_cols"]
 medians = pd.Series(bundle["medians"], dtype=float)
 
 raw = load_raw()
+if raw.empty:
+    raise RuntimeError("No market data is available after refresh.")
+
+# Fail closed when the latest observation is stale or future-dated.
+market_data_date = raw.index.max()
+market_data_age_days = validate_market_data_freshness(
+    market_data_date,
+    max_age_days=4,
+)
+
 raw_enriched, detected = add_safe_cross_market_features(raw)
 
 features = build_features(raw_enriched)
@@ -237,8 +255,10 @@ latest = latest.fillna(medians.reindex(feature_cols))
 latest = latest.fillna(0.0)
 
 prob = model.predict_proba(latest)[0]
-prob_down = float(prob[0])
-prob_up = float(prob[1])
+prob_down, prob_up = validate_probability_pair(
+    float(prob[0]),
+    float(prob[1]),
+)
 
 prediction = "UP" if prob_up >= prob_down else "DOWN"
 # Persist all probability values as fractions (0-1), matching the legacy
@@ -317,6 +337,8 @@ risk_score = get_indicator(
 
 result = {
     "prediction_date": str(latest_date.date()),
+    "market_data_date": str(pd.Timestamp(market_data_date).date()),
+    "market_data_age_days": int(market_data_age_days),
     "prediction": prediction,
     "probability_up": round(prob_up, 6),
     "probability_down": round(prob_down, 6),
