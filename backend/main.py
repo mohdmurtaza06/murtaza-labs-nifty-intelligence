@@ -223,10 +223,24 @@ def get_production_prediction_data():
         if not isinstance(data, dict):
             return None
 
-        # Never serve a saved artifact as a current prediction when its market
-        # observation is stale, future-dated, or its probabilities are invalid.
+        # Do not mix predictions trained against the retired close-to-close
+        # target with the executable next-session open-to-close target.
+        expected_target = "next_session_open_to_close_direction"
+        if data.get("target_horizon") != expected_target:
+            raise ValueError(
+                "Prediction uses an outdated or unsupported target horizon."
+            )
+        prediction_date = str(data.get("prediction_date", ""))[:10]
+        market_data_date = str(
+            data.get("market_data_date") or data.get("prediction_date", "")
+        )[:10]
+        if not prediction_date or prediction_date != market_data_date:
+            raise ValueError("Prediction date and market-data date do not match.")
+
+        # Never serve a saved artifact as current when its market observation
+        # is stale, future-dated, or its probabilities are invalid.
         validate_market_data_freshness(
-            data.get("market_data_date") or data.get("prediction_date"),
+            market_data_date,
             max_age_days=4,
         )
         probability_up, probability_down = validate_probability_pair(
@@ -568,9 +582,13 @@ def get_dashboard_data():
 
     latest = prediction_df.iloc[-1]
 
-    # The legacy fallback is subject to the same staleness and probability
-    # checks as the production artifact. It must never hide a stale model file.
+    # Old legacy predictions have no trustworthy record of target horizon
+    # and execution timing. Do not silently fall back to them as current output.
     try:
+        if latest.get("Target_Horizon") != "next_session_open_to_close_direction":
+            raise ValueError(
+                "Legacy prediction does not declare the supported target horizon."
+            )
         validate_market_data_freshness(
             latest.get("Prediction_Date", ""),
             max_age_days=4,
@@ -752,9 +770,9 @@ def production_prediction():
         raise HTTPException(
             status_code=404,
             detail=(
-                "latest_production_prediction.json "
-                "not found. Run "
-                "15_live_prediction_production.py first."
+                "No current validated production prediction is available. "
+                "Refresh market data and retrain the model with the supported "
+                "target horizon before retrying."
             ),
         )
 
