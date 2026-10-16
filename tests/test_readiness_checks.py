@@ -20,10 +20,13 @@ class TargetLabelTests(unittest.TestCase):
         self.assertEqual(labels.iloc[1], 0.0)
         self.assertTrue(pd.isna(labels.iloc[2]))
 
-    def test_infinite_return_is_not_labeled(self):
-        labels = target_from_next_returns(pd.Series([float("inf"), 0.0]))
+    def test_infinite_and_flat_returns_are_not_directional_labels(self):
+        labels = target_from_next_returns(
+            pd.Series([float("inf"), 0.0, -0.01])
+        )
         self.assertTrue(pd.isna(labels.iloc[0]))
-        self.assertEqual(labels.iloc[1], 0.0)
+        self.assertTrue(pd.isna(labels.iloc[1]))
+        self.assertEqual(labels.iloc[2], 0.0)
 
 
 class FreshnessTests(unittest.TestCase):
