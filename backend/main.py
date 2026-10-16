@@ -449,7 +449,13 @@ def get_dashboard_data():
 
             "confidence": confidence,
 
-            "signal": prediction,
+            "signal": "NO_TRADE",
+            "trade_status": "NO_TRADE",
+            "trading_mode": "RESEARCH_ONLY",
+            "target_horizon": production.get("target_horizon"),
+            "probabilities_calibrated": bool(
+                production.get("probabilities_calibrated", False)
+            ),
 
             "total_predictions": int(
                 len(history)
@@ -656,12 +662,11 @@ def get_dashboard_data():
             )
         ),
 
-        "signal": str(
-            latest.get(
-                "Signal",
-                "UNKNOWN",
-            )
-        ),
+        "signal": "NO_TRADE",
+        "trade_status": "NO_TRADE",
+        "trading_mode": "RESEARCH_ONLY",
+        "target_horizon": latest.get("Target_Horizon"),
+        "probabilities_calibrated": False,
 
         "total_predictions": int(
             len(history)
@@ -706,6 +711,10 @@ def health():
 
         "service":
             "Murtaza Labs NIFTY Intelligence API",
+
+        "trading_mode": "RESEARCH_ONLY",
+        "live_orders_enabled": False,
+        "production_eligible": False,
 
         "pipeline_running":
             pipeline_status["running"],
