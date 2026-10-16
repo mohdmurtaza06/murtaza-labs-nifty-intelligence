@@ -73,13 +73,25 @@ def load_raw():
     live = pd.read_csv(LIVE_PATH, parse_dates=["Date"])
     live = live.drop_duplicates("Date").set_index("Date").sort_index()
 
-    if len(ext):
-        newer = live[live.index > ext.index.max()]
-        raw = pd.concat([ext, newer], axis=0, sort=False)
-    else:
-        raw = live
+    if live.empty:
+        raise RuntimeError("The live-data refresh produced no market rows.")
 
-    return raw.sort_index()
+    # Validate the freshly fetched file itself, not only the merged historical
+    # dataset. Otherwise an older external file could mask a stale live refresh.
+    live_latest_date = live.index.max()
+    live_age_days = validate_market_data_freshness(
+        live_latest_date,
+        max_age_days=4,
+        require_latest_completed_session=True,
+    )
+    print(
+        f"Verified live market data through {pd.Timestamp(live_latest_date).date()} "
+        f"(age {live_age_days} calendar day(s))."
+    )
+
+    # Prefer fresh rows and fresh values for overlapping dates; use the longer
+    # external history only to fill dates/fields that the live file lacks.
+    return live.combine_first(ext).sort_index() if not ext.empty else live.sort_index()
 
 
 def add_safe_cross_market_features(df):
