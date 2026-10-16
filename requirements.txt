@@ -10,3 +10,4 @@ joblib
 python-dateutil
 pytz
 httpx
+pandas-market-calendars
