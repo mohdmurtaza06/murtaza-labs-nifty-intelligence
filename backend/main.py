@@ -356,7 +356,7 @@ def get_dashboard_data():
     not auditable. Displayed directions are research-only and NO TRADE.
     """
 
-    production = get_research_prediction_data()
+    research = get_research_prediction_data()
     market_snapshot = derive_market_snapshot()
 
     history_file = DATA_DIR / "prediction_history.csv"
@@ -398,45 +398,45 @@ def get_dashboard_data():
     # RESEARCH CANDIDATE OUTPUT
     # --------------------------------------------------------
 
-    if production is not None:
+    if research is not None:
 
         prediction = str(
-            production.get(
+            research.get(
                 "prediction",
                 "UNKNOWN",
             )
         )
 
         probability_up = float(
-            production.get(
+            research.get(
                 "probability_up",
                 0,
             )
         )
 
         probability_down = float(
-            production.get(
+            research.get(
                 "probability_down",
                 0,
             )
         )
 
         confidence = float(
-            production.get(
+            research.get(
                 "confidence",
                 0,
             )
         )
 
         nifty_close = float(
-            production.get(
+            research.get(
                 "nifty_close",
                 0,
             )
         )
 
         date = str(
-            production.get(
+            research.get(
                 "prediction_date",
                 "",
             )
@@ -477,7 +477,7 @@ def get_dashboard_data():
                 "research_candidate",
 
             "research_candidate":
-                production.get(
+                research.get(
                     "model",
                     "CATBOOST_RESEARCH_CANDIDATE",
                 ),
@@ -486,83 +486,83 @@ def get_dashboard_data():
             "trade_status": "NO_TRADE",
             "production_eligible": False,
             "live_orders_enabled": False,
-            "target_horizon": production.get("target_horizon"),
+            "target_horizon": research.get("target_horizon"),
             "probabilities_calibrated": bool(
-                production.get("probabilities_calibrated", False)
+                research.get("probabilities_calibrated", False)
             ),
 
             "model_trained_through":
-                production.get(
+                research.get(
                     "model_trained_through"
                 ),
 
             "feature_count":
                 int(
-                    production.get(
+                    research.get(
                         "feature_count",
                         0,
                     )
                 ),
 
             "rsi_14":
-                production.get(
+                research.get(
                     "rsi_14"
                 ),
 
             "macd":
-                production.get(
+                research.get(
                     "macd"
                 ),
 
             "day_change_pct":
                 market_snapshot.get(
                     "day_change_pct",
-                    numeric_or_none(production.get("day_change_pct"))
+                    numeric_or_none(research.get("day_change_pct"))
                 ),
 
             "india_vix":
                 market_snapshot.get(
                     "india_vix",
-                    numeric_or_none(production.get("india_vix"), zero_is_missing=True)
+                    numeric_or_none(research.get("india_vix"), zero_is_missing=True)
                 ),
 
             "banknifty_return_1d":
-                production.get(
+                research.get(
                     "banknifty_return_1d"
                 ),
 
             "sp500_return_1d":
-                production.get(
+                research.get(
                     "sp500_return_1d"
                 ),
 
             "usdinr_return_1d":
-                production.get(
+                research.get(
                     "usdinr_return_1d"
                 ),
 
             "gold_return_1d":
-                production.get(
+                research.get(
                     "gold_return_1d"
                 ),
 
             "crude_return_1d":
-                production.get(
+                research.get(
                     "crude_return_1d"
                 ),
 
             "trend_regime":
-                production.get(
+                research.get(
                     "trend_regime"
                 ),
 
             "volatility_regime":
-                production.get(
+                research.get(
                     "volatility_regime"
                 ),
 
             "risk_score":
-                production.get(
+                research.get(
                     "risk_score"
                 ),
 
