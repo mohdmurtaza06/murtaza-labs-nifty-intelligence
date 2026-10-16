@@ -11,15 +11,21 @@ EXPECTED_TARGET_HORIZON = "next_session_open_to_close_direction"
 
 
 def parse_bool(value):
-    """Parse a CSV boolean without treating the string 'False' as truthy."""
+    """Parse CSV booleans, including numeric 1.0/0.0 values from pandas."""
     if isinstance(value, (bool, np.bool_)):
         return bool(value)
     if pd.isna(value):
         return None
+    if isinstance(value, (int, float, np.integer, np.floating)):
+        if value == 1:
+            return True
+        if value == 0:
+            return False
+        return None
     text = str(value).strip().lower()
-    if text in {"true", "1", "yes"}:
+    if text in {"true", "1", "1.0", "yes"}:
         return True
-    if text in {"false", "0", "no"}:
+    if text in {"false", "0", "0.0", "no"}:
         return False
     return None
 
@@ -140,15 +146,23 @@ for index, row in unresolved.iterrows():
 
 history.to_csv(TRACKER_FILE, index=False)
 
-resolved = history[history["Correct"].notna()].copy()
+score_history = history[
+    history["Target_Horizon"] == EXPECTED_TARGET_HORIZON
+].copy()
+resolved = score_history[score_history["Correct"].notna()].copy()
 parsed_correct = resolved["Correct"].map(parse_bool).dropna()
+unsupported_resolved = history[
+    (history["Target_Horizon"] != EXPECTED_TARGET_HORIZON)
+    & history["Correct"].notna()
+]
 
 print()
 print("=" * 60)
 print("PERFORMANCE SUMMARY")
 print("=" * 60)
 print(f"Total predictions: {len(history)}")
-print(f"Resolved records: {len(resolved)}")
+print(f"Resolved supported-horizon records: {len(resolved)}")
+print(f"Legacy/unsupported resolved records excluded: {len(unsupported_resolved)}")
 print(f"Supported verified observations: {len(parsed_correct)}")
 if not parsed_correct.empty:
     accuracy = parsed_correct.mean()
