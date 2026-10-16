@@ -54,14 +54,11 @@ def load_data():
     live = pd.read_csv(LIVE_PATH, parse_dates=["Date"])
     live = live.drop_duplicates("Date").set_index("Date").sort_index()
 
-    # Prefer the prepared external dataset, then add any newer live NIFTY rows.
-    if len(ext):
-        newer = live[live.index > ext.index.max()]
-        raw = pd.concat([ext, newer], axis=0, sort=False)
-    else:
-        raw = live
-
-    return raw.sort_index()
+    if live.empty:
+        return ext.sort_index()
+    # Fresh/live data should win on overlapping dates; retain the external
+    # dataset for older history and for any fields missing from the live source.
+    return live.combine_first(ext).sort_index() if not ext.empty else live.sort_index()
 
 
 def add_safe_cross_market_features(df):
