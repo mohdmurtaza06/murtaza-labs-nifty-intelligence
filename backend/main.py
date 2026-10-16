@@ -35,6 +35,7 @@ from readiness_checks import (
     validate_market_data_freshness,
     validate_probability_pair,
 )
+from release_readiness import assess_readiness
 
 
 # ============================================================
@@ -629,61 +630,8 @@ def health():
 
 @app.get("/api/readiness")
 def readiness():
-    """Report evidence-gate state without treating missing proof as a pass.
-
-    The API being reachable only proves process liveness. Production approval
-    requires separately recorded, independently reviewable evidence.
-    """
-    gates = {
-        "fresh_market_data": {
-            "status": "NOT_VERIFIED",
-            "reason": "Runtime market data and the latest completed NSE session have not been verified for this release.",
-        },
-        "canonical_172_feature_model": {
-            "status": "NOT_VERIFIED",
-            "reason": "An exact, ordered 172-feature manifest and matching model bundle have not been independently verified.",
-        },
-        "probability_calibration": {
-            "status": "NOT_VERIFIED",
-            "reason": "Calibration must be fit on chronological out-of-sample predictions and independently assessed.",
-        },
-        "untouched_chronological_holdout": {
-            "status": "NOT_VERIFIED",
-            "reason": "A preserved one-time holdout report with matching code/data hashes is required.",
-        },
-        "prospective_paper_signals": {
-            "status": "NOT_VERIFIED",
-            "required_count": 200,
-            "verified_count": None,
-            "reason": "The append-only prospective ledger and all 200 closed outcomes require audit; historical/backfilled records do not count.",
-        },
-        "niftybees_reconciliation": {
-            "status": "NOT_VERIFIED",
-            "reason": "Independent instrument-level fills, costs, and outcomes have not been reconciled.",
-        },
-        "broker_integration": {
-            "status": "NOT_CONFIGURED",
-            "reason": "No verified broker integration, account checks, or required compliance review is recorded.",
-        },
-        "live_orders": {
-            "status": "DISABLED",
-            "reason": "Real-money order execution is intentionally unavailable in this research-only release.",
-        },
-        "real_money_approval": {
-            "status": "NOT_APPROVED",
-            "reason": "No explicit operational, statistical, and applicable regulatory approval is recorded.",
-        },
-    }
-    return {
-        "service_status": "ONLINE",
-        "readiness_status": "NOT_READY",
-        "trading_mode": "RESEARCH_ONLY",
-        "trade_status": "NO_TRADE",
-        "production_eligible": False,
-        "live_orders_enabled": False,
-        "gates": gates,
-        "release_blocked": True,
-    }
+    """Inspect evidence artifacts. An online API is never production approval."""
+    return assess_readiness(PROJECT_DIR)
 
 
 # ============================================================
