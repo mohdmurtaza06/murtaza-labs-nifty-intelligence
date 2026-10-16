@@ -16,12 +16,13 @@ IST = ZoneInfo("Asia/Kolkata")
 def target_from_next_returns(next_returns: pd.Series) -> pd.Series:
     """Convert next-session returns to labels without inventing missing labels.
 
-    Positive return -> 1 (UP); zero/negative return -> 0 (not UP).
-    Missing/infinite returns remain NaN and must be excluded from training.
+    Positive return -> 1 (UP); negative return -> 0 (DOWN).
+    Exact-flat, missing, and infinite returns remain NaN and are excluded from
+    binary directional training, matching the prospective outcome verifier.
     """
     returns = pd.to_numeric(next_returns, errors="coerce")
     values = returns.to_numpy(dtype=float, na_value=np.nan)
-    valid = np.isfinite(values)
+    valid = np.isfinite(values) & (values != 0.0)
 
     target = pd.Series(np.nan, index=returns.index, dtype=float)
     if valid.any():
