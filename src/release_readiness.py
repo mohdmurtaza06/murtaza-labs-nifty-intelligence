@@ -250,11 +250,38 @@ def _prospective_paper_gate(base: Path) -> dict[str, Any]:
             verified_count=0,
         )
     prospective = frame["is_prospective"].astype(str).str.strip().str.lower().isin({"true", "1", "yes"})
-    resolved = frame["outcome_verified_at"].notna()
+    signal_time = pd.to_datetime(frame["signal_time"], errors="coerce", utc=True)
+    data_through = pd.to_datetime(frame["data_through_date"], errors="coerce", utc=True)
+    outcome_time = pd.to_datetime(frame["outcome_verified_at"], errors="coerce", utc=True)
+    resolved = outcome_time.notna()
     valid_horizon = frame["target_horizon"].astype(str).eq(EXPECTED_TARGET_HORIZON)
     unique_ids = frame["signal_id"].notna() & ~frame["signal_id"].duplicated(keep=False)
-    numeric_ok = pd.to_numeric(frame["actual_return"], errors="coerce").notna()
-    closed = frame[prospective & resolved & valid_horizon & unique_ids & numeric_ok]
+    numeric = {
+        column: pd.to_numeric(frame[column], errors="coerce")
+        for column in ("actual_open", "actual_close", "actual_return", "simulated_costs")
+    }
+    numeric_ok = (
+        numeric["actual_open"].gt(0)
+        & numeric["actual_close"].gt(0)
+        & numeric["actual_return"].notna()
+        & numeric["simulated_costs"].ge(0)
+    )
+    time_ok = (
+        signal_time.notna()
+        & data_through.notna()
+        & outcome_time.notna()
+        & (data_through <= signal_time)
+        & (outcome_time >= signal_time)
+    )
+    hashes_ok = (
+        frame["model_hash"].astype(str).str.strip().ne("")
+        & frame["feature_hash"].astype(str).str.strip().ne("")
+        & frame["model_hash"].astype(str).str.lower().ne("nan")
+        & frame["feature_hash"].astype(str).str.lower().ne("nan")
+    )
+    closed = frame[
+        prospective & resolved & valid_horizon & unique_ids & numeric_ok & time_ok & hashes_ok
+    ]
     count = int(len(closed))
     status = "PASS" if count >= REQUIRED_PAPER_OBSERVATIONS else "FAIL"
     return _gate(
