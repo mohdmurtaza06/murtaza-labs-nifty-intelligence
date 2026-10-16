@@ -890,23 +890,23 @@ export default function App() {
   const dayChangePct = Number.isFinite(dashboardDayChange)
     ? dashboardDayChange
     : (Number.isFinite(advanced.dayChangePct) ? advanced.dayChangePct : null);
-  const productionRSI = Number(dashboard?.rsi_14);
-  const productionTrend = Number(dashboard?.trend_regime);
-  const productionVolatility = Number(dashboard?.volatility_regime);
-  const productionRisk = Number(dashboard?.risk_score);
+  const researchRSI = Number(dashboard?.rsi_14);
+  const researchTrend = Number(dashboard?.trend_regime);
+  const researchVolatility = Number(dashboard?.volatility_regime);
+  const researchRisk = Number(dashboard?.risk_score);
 
-  const volatilityLabel = Number.isFinite(productionVolatility)
-    ? productionVolatility >= 1.1
+  const volatilityLabel = Number.isFinite(researchVolatility)
+    ? researchVolatility >= 1.1
       ? "HIGH"
-      : productionVolatility >= 0.65
+      : researchVolatility >= 0.65
       ? "NORMAL"
       : "LOW"
     : "—";
 
-  const riskLabel = Number.isFinite(productionRisk)
-    ? productionRisk > 0.15
+  const riskLabel = Number.isFinite(researchRisk)
+    ? researchRisk > 0.15
       ? "HIGH"
-      : productionRisk < -0.15
+      : researchRisk < -0.15
       ? "LOW"
       : "MODERATE"
     : "—";
@@ -1296,8 +1296,8 @@ export default function App() {
               />
               <RegimePill
                 label="MODEL TREND"
-                value={Number.isFinite(productionTrend) ? `${productionTrend > 0 ? "+" : ""}${productionTrend.toFixed(0)}` : "—"}
-                tone={productionTrend > 0 ? "green" : productionTrend < 0 ? "red" : "gold"}
+                value={Number.isFinite(researchTrend) ? `${researchTrend > 0 ? "+" : ""}${researchTrend.toFixed(0)}` : "—"}
+                tone={researchTrend > 0 ? "green" : researchTrend < 0 ? "red" : "gold"}
               />
               <RegimePill label="VOLATILITY" value={volatilityLabel} tone={volatilityLabel === "HIGH" ? "red" : volatilityLabel === "LOW" ? "green" : "gold"} />
               <RegimePill label="RISK" value={riskLabel} tone={riskLabel === "HIGH" ? "red" : riskLabel === "LOW" ? "green" : "gold"} />
@@ -1313,7 +1313,7 @@ export default function App() {
               <div className="technical-matrix">
                 {[
                   ["RSI 5", advanced.rsi5, "number", ""],
-                  ["RSI 14", Number.isFinite(productionRSI) ? productionRSI : advanced.rsi14, "number", ""],
+                  ["RSI 14", Number.isFinite(researchRSI) ? researchRSI : advanced.rsi14, "number", ""],
                   ["RSI 21", advanced.rsi21, "number", ""],
                   ["MACD", advanced.macd, "number", ""],
                   ["SMA 20", advanced.sma20, "price", ""],
@@ -2025,7 +2025,7 @@ export default function App() {
 
             <article className="indicator-stack reveal">
               {[
-                ["RSI 14", Number.isFinite(productionRSI) ? productionRSI : advanced.rsi14, 100, productionRSI >= 70 ? "red" : productionRSI <= 30 ? "green" : "gold"],
+                ["RSI 14", Number.isFinite(researchRSI) ? researchRSI : advanced.rsi14, 100, researchRSI >= 70 ? "red" : researchRSI <= 30 ? "green" : "gold"],
                 ["BB POSITION", advanced.bbPosition, 100, "gold"],
                 ["STOCHASTIC", advanced.stochastic, 100, advanced.stochastic > 80 ? "red" : advanced.stochastic < 20 ? "green" : "gold"],
                 ["VOLUME ACTIVITY", advanced.volumeRatio != null ? Math.min(100, advanced.volumeRatio * 50) : null, 100, "green"],
