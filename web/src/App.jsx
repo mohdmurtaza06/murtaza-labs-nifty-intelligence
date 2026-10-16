@@ -431,7 +431,7 @@ function ConfidenceRing({ value }) {
     >
       <div>
         <strong>{value.toFixed(2)}%</strong>
-        <small>CONFIDENCE</small>
+        <small>RAW MODEL SCORE</small>
       </div>
     </div>
   );
@@ -1170,7 +1170,7 @@ export default function App() {
 
           <div>
             <span>
-              CONFIDENCE
+              RAW MODEL SCORE
               <strong>
                 {confidence.toFixed(2)}%
               </strong>
@@ -1181,8 +1181,8 @@ export default function App() {
             <i />
 
             <span>
-              MODEL
-              <strong>ONLINE</strong>
+              EXECUTION STATUS
+              <strong>NO TRADE</strong>
             </span>
           </div>
         </section>
@@ -1492,7 +1492,7 @@ export default function App() {
                   : "prediction-down"
               } ${newPrediction ? "prediction-updated" : ""} reveal`}
             >
-              <span>MODEL PREDICTION</span>
+              <span>RESEARCH DIRECTION</span>
 
               {newPrediction && (
                 <b className="new-prediction-badge">
@@ -1506,12 +1506,12 @@ export default function App() {
 
               <small>
                 {isUp
-                  ? "BULLISH SIGNAL"
-                  : "BEARISH SIGNAL"}
+                  ? "UP-MOVE ESTIMATE"
+                  : "DOWN-MOVE ESTIMATE"}
               </small>
 
               <div className="prediction-line">
-                LIVE DIRECTIONAL SIGNAL
+                PAPER RESEARCH ONLY · NO LIVE TRADES
               </div>
             </article>
 
@@ -1712,7 +1712,7 @@ export default function App() {
             <div className="model-side">
               <div className="model-stat reveal">
                 <span>
-                  CURRENT SIGNAL
+                  RESEARCH DIRECTION
                 </span>
 
                 <strong
@@ -1738,7 +1738,7 @@ export default function App() {
                 </strong>
 
                 <small>
-                  Model confidence
+                  Uncalibrated model score
                 </small>
               </div>
 
@@ -1764,7 +1764,7 @@ export default function App() {
             <div className="intelligence-header">
               <div>
                 <span>03 · PREDICTION INTELLIGENCE</span>
-                <h3>WHY THE MARKET SIGNAL LOOKS THIS WAY.</h3>
+                <h3>WHY THE MODEL LEANS THIS WAY.</h3>
                 <p>
                   Live technical and market conditions calculated from
                   the latest available NIFTY 50 data.
@@ -1779,7 +1779,7 @@ export default function App() {
                   {isUp ? "▲ UP" : "▼ DOWN"}
                 </strong>
                 <span>
-                  {confidence.toFixed(2)}% CONFIDENCE
+                  {confidence.toFixed(2)}% RAW SCORE
                 </span>
               </div>
             </div>
@@ -2299,7 +2299,7 @@ export default function App() {
                         </strong>
 
                         <span>
-                          CONFIDENCE
+                          RAW MODEL SCORE
                         </span>
 
                         <b>
