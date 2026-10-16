@@ -52,7 +52,7 @@ pipeline_status = {
 }
 
 # Prevent the automatic scheduler from triggering the same
-# pipeline multiple times during the 16:00-15:50 window.
+# pipeline multiple times during the 16:00-16:10 window.
 last_automatic_trigger_date = None
 
 
@@ -1539,12 +1539,12 @@ def automatic_pipeline_scheduler():
                         scheduled_time
                     )
                     + timedelta(
-                        minutes=5
+                        minutes=10
                     )
                 ).time()
 
                 # ------------------------------------------------
-                # Trigger during the 16:00-15:50 window.
+                # Trigger during the 16:00-16:10 window.
                 # ------------------------------------------------
 
                 if (
