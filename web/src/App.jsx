@@ -737,18 +737,36 @@ export default function App() {
   const runPipeline = async () => {
     if (pipelineRunning) return;
 
+    // Never bake the backend token into the public Vite bundle or localStorage.
+    // Prompt per action and send it only in an HTTPS request header.
+    const triggerToken = window.prompt(
+      "Enter the backend pipeline trigger token. It will not be saved."
+    );
+    if (!triggerToken) {
+      showMessage("PIPELINE TRIGGER CANCELLED.");
+      return;
+    }
+
     setPipelineRunning(true);
-    showMessage("STARTING PREDICTION PIPELINE...");
+    showMessage("AUTHENTICATING PIPELINE REQUEST...");
 
     try {
       const response = await fetch(
         `${API}/run-pipeline`,
         {
           method: "POST",
+          headers: {
+            "X-Pipeline-Token": triggerToken,
+          },
         }
       );
 
-      const result = await response.json();
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(
+          result.detail || `Pipeline request rejected (${response.status}).`
+        );
+      }
 
       if (result.status === "already_running") {
         showMessage("PIPELINE IS ALREADY RUNNING.");
@@ -813,7 +831,9 @@ export default function App() {
     } catch (error) {
       console.error(error);
       showMessage(
-        "UNABLE TO START PREDICTION PIPELINE."
+        error instanceof Error
+          ? error.message.toUpperCase()
+          : "UNABLE TO START PREDICTION PIPELINE."
       );
       setPipelineRunning(false);
     }
