@@ -365,8 +365,14 @@ def get_dashboard_data():
     if (
         not history.empty
         and "Correct" in history.columns
+        and "Target_Horizon" in history.columns
     ):
-        for value in history["Correct"]:
+        # Only aggregate outcomes that match the current execution target.
+        score_history = history[
+            history["Target_Horizon"]
+            == "next_session_open_to_close_direction"
+        ]
+        for value in score_history["Correct"]:
             parsed = parse_bool(value)
 
             if parsed is not None:
