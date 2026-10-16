@@ -203,13 +203,20 @@ extra = (
 features = pd.concat([features, extra], axis=1)
 features = features.loc[:, ~features.columns.duplicated()]
 
-close = pd.to_numeric(
+open_prices = pd.to_numeric(
+    raw_enriched["Open"], errors="coerce"
+).reindex(features.index)
+close_prices = pd.to_numeric(
     raw_enriched["Close"], errors="coerce"
 ).reindex(features.index)
 
-next_return = close.shift(-1) / close - 1
-# The final row has no known next-session return. Keep it unlabeled rather
-# than converting NaN > 0 into False (a synthetic DOWN label).
+# The signal is generated only after session t closes, so it cannot honestly
+# enter at close[t]. Define the target as the next session's open-to-close
+# return, matching a paper trade entered at the next open and exited at that
+# session's close. The last row has no known future label and stays missing.
+next_session_open = open_prices.shift(-1)
+next_session_close = close_prices.shift(-1)
+next_return = next_session_close / next_session_open - 1
 target = target_from_next_returns(next_return)
 
 feature_cols = [
@@ -254,7 +261,7 @@ bundle = {
     "trained_through": str(X.index.max().date()),
     "training_rows": int(len(X)),
     "feature_count": int(len(feature_cols)),
-    "target": "next_trading_day_direction",
+    "target": "next_session_open_to_close_direction",
     "detected_sources": detected_sources,
     "safe_lagged_sources": [
         "SP500",
