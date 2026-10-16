@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 
-const API = "https://murtaza-labs-nifty-intelligence-3.onrender.com/api";
+const API = (import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api").replace(/\/+$/, "");
 function Sparkline({ prices = [], large = false }) {
   if (prices.length < 2) {
     return <div className="empty-chart">MARKET DATA UNAVAILABLE</div>;
@@ -529,7 +529,11 @@ export default function App() {
         ]);
 
       if (!dashboardRes.ok) {
-        throw new Error("Backend unavailable");
+        const detail = await dashboardRes.json().catch(() => ({}));
+        throw new Error(
+          detail.detail ||
+            `Dashboard request failed (${dashboardRes.status}).`
+        );
       }
 
       const nextDashboard = await dashboardRes.json();
@@ -562,6 +566,7 @@ export default function App() {
       }
 
       setDashboard(nextDashboard);
+      setMessage("");
       setMarket(
         marketRes.ok ? await marketRes.json() : []
       );
@@ -954,16 +959,39 @@ export default function App() {
           )
         );
 
-  if (loading || !dashboard) {
+  if (loading) {
     return (
-      <div className="loading-screen">
+      <div className="loading-screen" role="status" aria-live="polite">
         <div className="loading-mark">ML</div>
-
         <div>
           <strong>MURTAZA LABS</strong>
-          <span>
-            INITIALIZING NIFTY INTELLIGENCE
-          </span>
+          <span>CHECKING RESEARCH DATA AND READINESS</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!dashboard) {
+    return (
+      <div className="loading-screen" role="status" aria-live="polite">
+        <div className="loading-mark">NO</div>
+        <div>
+          <strong>MURTAZA LABS · RESEARCH MODE</strong>
+          <span>NO VERIFIED RESEARCH SIGNAL AVAILABLE</span>
+          <p>
+            The backend has not supplied a current, validated research prediction.
+            The dashboard will not display a stale signal as current.
+          </p>
+          <p><b>TRADING STATUS: NO TRADE · LIVE ORDERS DISABLED</b></p>
+          {message && <p>{message}</p>}
+          <button
+            type="button"
+            className="gold-button"
+            onClick={() => loadData(true)}
+            disabled={refreshing}
+          >
+            {refreshing ? "CHECKING…" : "RETRY DATA CHECK"}
+          </button>
         </div>
       </div>
     );
@@ -1191,9 +1219,9 @@ export default function App() {
         <section id="command" className="command-center-section">
           <div className="command-header reveal">
             <div>
-              <span>LIVE COMMAND CENTER</span>
+              <span>RESEARCH COMMAND CENTER</span>
               <h2>THE MARKET AT A GLANCE.</h2>
-              <p>Production model output, technical state, market regime and cross-market context in one screen.</p>
+              <p>Research candidate output, technical state, market regime and cross-market context in one screen.</p>
             </div>
             <div className="command-time">
               <span>{marketSession}</span>
@@ -1213,7 +1241,7 @@ export default function App() {
           <div className="command-grid">
             <article className="command-hero-card reveal">
               <div className="command-card-top">
-                <span>PRODUCTION MODEL</span>
+                <span>RESEARCH CANDIDATE</span>
                 <b className={isUp ? "green-text" : "red-text"}>
                   {isUp ? "▲ UP" : "▼ DOWN"}
                 </b>
@@ -1306,7 +1334,7 @@ export default function App() {
             <article className="command-panel reveal">
               <div className="command-panel-title">
                 <span>CROSS-MARKET</span>
-                <small>PRODUCTION INPUTS</small>
+                <small>RESEARCH INPUTS</small>
               </div>
               <div className="cross-market-grid">
                 {[
@@ -1328,7 +1356,7 @@ export default function App() {
                 ))}
               </div>
               <div className="cross-market-note">
-                <i /> Cross-market features are read from the production prediction payload.
+                <i /> Cross-market features are read from the research prediction payload.
               </div>
             </article>
           </div>
@@ -1353,7 +1381,7 @@ export default function App() {
             <article className="command-panel reveal">
               <div className="command-panel-title">
                 <span>MODEL HEALTH</span>
-                <small>PRODUCTION</small>
+                <small>RESEARCH ONLY</small>
               </div>
               <div className="health-list">
                 {[
@@ -1447,7 +1475,7 @@ export default function App() {
             <span>SCHEDULER</span>
 
             <strong>
-              15:45 IST
+              16:00 IST
             </strong>
 
             <small>
@@ -1677,7 +1705,7 @@ export default function App() {
                   [
                     "04",
                     "CatBoost",
-                    "Production Classification",
+                    "Research Classification",
                   ],
                   [
                     "05",
@@ -2161,7 +2189,7 @@ export default function App() {
               [
                 "03",
                 "MACHINE LEARNING",
-                "CatBoost production directional classification.",
+                "CatBoost research-only directional classification.",
               ],
               [
                 "04",
