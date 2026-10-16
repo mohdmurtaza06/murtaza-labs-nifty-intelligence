@@ -202,6 +202,14 @@ if not run_live_data_update():
     )
 
 bundle = joblib.load(MODEL_PATH)
+EXPECTED_TARGET_HORIZON = "next_session_open_to_close_direction"
+if bundle.get("target") != EXPECTED_TARGET_HORIZON:
+    raise RuntimeError(
+        "The saved model uses an outdated or unsupported target horizon "
+        f"({bundle.get('target')!r}). Rebuild the model with "
+        "27_build_production_model.py before generating predictions."
+    )
+
 model = bundle["model"]
 feature_cols = bundle["feature_cols"]
 medians = pd.Series(bundle["medians"], dtype=float)
@@ -339,6 +347,8 @@ result = {
     "prediction_date": str(latest_date.date()),
     "market_data_date": str(pd.Timestamp(market_data_date).date()),
     "market_data_age_days": int(market_data_age_days),
+    "target_horizon": bundle["target"],
+    "probabilities_calibrated": bool(bundle.get("probabilities_calibrated", False)),
     "prediction": prediction,
     "probability_up": round(prob_up, 6),
     "probability_down": round(prob_down, 6),
