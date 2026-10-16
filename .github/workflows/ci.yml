@@ -32,7 +32,7 @@ jobs:
         run: python -m unittest discover -s tests -v
 
       - name: Compile Python sources
-        run: python -m compileall -q backend src notebooks tests
+        run: python -m compileall -q backend src notebooks tests scripts
 
   frontend-build:
     runs-on: ubuntu-latest
@@ -55,3 +55,34 @@ jobs:
 
       - name: Build frontend
         run: npm run build
+
+  source-package:
+    name: Build consolidated source release ZIP
+    if: ${{ success() && github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fix/') }}
+    needs:
+      - python-safety
+      - frontend-build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out tested commit
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build and verify single source-release ZIP
+        env:
+          RELEASE_CI_STATUS: passed
+        run: python scripts/build_release_package.py
+
+      - name: Upload release ZIP and checksum
+        uses: actions/upload-artifact@v4
+        with:
+          name: MURTAZA_LABS_NIFTY_INTELLIGENCE_SOURCE_RELEASE
+          path: |
+            dist/*.zip
+            dist/*.zip.sha256
+          if-no-files-found: error
+          retention-days: 30
