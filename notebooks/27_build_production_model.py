@@ -16,6 +16,7 @@ MODELS = BASE / "models"
 sys.path.insert(0, str(BASE / "src"))
 
 from model_features_ultimate import build_features
+from readiness_checks import target_from_next_returns
 
 EXT_PATH = DATA / "nifty50_external_features.csv"
 LIVE_PATH = DATA / "live_market_data.csv"
@@ -207,7 +208,9 @@ close = pd.to_numeric(
 ).reindex(features.index)
 
 next_return = close.shift(-1) / close - 1
-target = (next_return > 0).astype(int)
+# The final row has no known next-session return. Keep it unlabeled rather
+# than converting NaN > 0 into False (a synthetic DOWN label).
+target = target_from_next_returns(next_return)
 
 feature_cols = [
     c for c in features.columns
