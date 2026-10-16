@@ -28,6 +28,13 @@ PRODUCTION_PREDICTION_FILE = DATA_DIR / "latest_production_prediction.json"
 
 IST = ZoneInfo("Asia/Kolkata")
 
+# Shared fail-closed checks used by the prediction pipeline and API.
+sys.path.insert(0, str(PROJECT_DIR / "src"))
+from readiness_checks import (
+    validate_market_data_freshness,
+    validate_probability_pair,
+)
+
 
 # ============================================================
 # PIPELINE STATE
@@ -215,7 +222,29 @@ def get_production_prediction_data():
         if not isinstance(data, dict):
             return None
 
+        # Never serve a saved artifact as a current prediction when its market
+        # observation is stale, future-dated, or its probabilities are invalid.
+        validate_market_data_freshness(
+            data.get("market_data_date") or data.get("prediction_date"),
+            max_age_days=4,
+        )
+        probability_up, probability_down = validate_probability_pair(
+            data.get("probability_up"),
+            data.get("probability_down"),
+        )
+        prediction = str(data.get("prediction", "")).upper()
+        expected_prediction = "UP" if probability_up >= probability_down else "DOWN"
+        if prediction != expected_prediction:
+            raise ValueError("Prediction label disagrees with its probabilities.")
+
+        confidence = float(data.get("confidence"))
+        if not 0 <= confidence <= 1 or abs(
+            confidence - max(probability_up, probability_down)
+        ) > 0.002:
+            raise ValueError("Prediction confidence is invalid or inconsistent.")
+
         data["available"] = True
+        data["freshness_verified"] = True
         return data
 
     except Exception as e:
@@ -537,6 +566,27 @@ def get_dashboard_data():
         )
 
     latest = prediction_df.iloc[-1]
+
+    # The legacy fallback is subject to the same staleness and probability
+    # checks as the production artifact. It must never hide a stale model file.
+    try:
+        validate_market_data_freshness(
+            latest.get("Prediction_Date", ""),
+            max_age_days=4,
+        )
+        legacy_up, legacy_down = validate_probability_pair(
+            latest.get("Probability_UP"),
+            latest.get("Probability_DOWN"),
+        )
+        legacy_prediction = str(latest.get("Prediction", "")).upper()
+        expected_legacy = "UP" if legacy_up >= legacy_down else "DOWN"
+        if legacy_prediction != expected_legacy:
+            raise ValueError("Legacy prediction label disagrees with probabilities.")
+    except (ValueError, TypeError) as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=f"No current, validated prediction is available: {exc}",
+        ) from exc
 
     return {
         "date": str(
