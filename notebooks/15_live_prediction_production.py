@@ -223,6 +223,7 @@ market_data_date = raw.index.max()
 market_data_age_days = validate_market_data_freshness(
     market_data_date,
     max_age_days=4,
+    require_latest_completed_session=True,
 )
 
 raw_enriched, detected = add_safe_cross_market_features(raw)
