@@ -271,7 +271,7 @@ def get_research_prediction_data():
 
     except Exception as e:
         print(
-            "Production prediction read error:",
+            "Research prediction read error:",
             str(e),
         )
         return None
@@ -576,137 +576,13 @@ def get_dashboard_data():
                 pipeline_status["last_completed"],
         }
 
-    # --------------------------------------------------------
-    # LEGACY FALLBACK
-    # --------------------------------------------------------
-
-    prediction_file = DATA_DIR / "live_prediction.csv"
-
-    if not prediction_file.exists():
-        raise HTTPException(
-            status_code=404,
-            detail=(
-                "No production prediction or "
-                "live_prediction.csv found"
-            ),
-        )
-
-    prediction_df = pd.read_csv(
-        prediction_file
+    raise HTTPException(
+        status_code=503,
+        detail=(
+            "No fresh, validated research candidate is available. "
+            "Legacy predictions are intentionally not accepted."
+        ),
     )
-
-    if prediction_df.empty:
-        raise HTTPException(
-            status_code=404,
-            detail="No prediction available",
-        )
-
-    latest = prediction_df.iloc[-1]
-
-    # Old legacy predictions have no trustworthy record of target horizon
-    # and execution timing. Do not silently fall back to them as current output.
-    try:
-        if latest.get("Target_Horizon") != "next_session_open_to_close_direction":
-            raise ValueError(
-                "Legacy prediction does not declare the supported target horizon."
-            )
-        validate_market_data_freshness(
-            latest.get("Prediction_Date", ""),
-            max_age_days=4,
-            require_latest_completed_session=True,
-        )
-        legacy_up, legacy_down = validate_probability_pair(
-            latest.get("Probability_UP"),
-            latest.get("Probability_DOWN"),
-        )
-        legacy_prediction = str(latest.get("Prediction", "")).upper()
-        expected_legacy = "UP" if legacy_up >= legacy_down else "DOWN"
-        if legacy_prediction != expected_legacy:
-            raise ValueError("Legacy prediction label disagrees with probabilities.")
-    except (ValueError, TypeError) as exc:
-        raise HTTPException(
-            status_code=503,
-            detail=f"No current, validated prediction is available: {exc}",
-        ) from exc
-
-    return {
-        "date": str(
-            latest.get(
-                "Prediction_Date",
-                "",
-            )
-        ),
-
-        "nifty_close": float(
-            latest.get(
-                "NIFTY_Close",
-                0,
-            )
-        ),
-
-        "prediction": str(
-            latest.get(
-                "Prediction",
-                "UNKNOWN",
-            )
-        ),
-
-        "probability_up": float(
-            latest.get(
-                "Probability_UP",
-                0,
-            )
-        ),
-
-        "probability_down": float(
-            latest.get(
-                "Probability_DOWN",
-                0,
-            )
-        ),
-
-        "confidence": float(
-            latest.get(
-                "Confidence",
-                0,
-            )
-        ),
-
-        "signal": "NO_TRADE",
-        "trade_status": "NO_TRADE",
-        "trading_mode": "RESEARCH_ONLY",
-        "target_horizon": latest.get("Target_Horizon"),
-        "probabilities_calibrated": False,
-
-        "total_predictions": int(
-            len(history)
-        ),
-
-        "verified_predictions": int(
-            verified
-        ),
-
-        "correct": int(
-            correct
-        ),
-
-        "accuracy": accuracy,
-
-        "backend": "online",
-
-        "prediction_source":
-            "legacy_live_prediction",
-
-        "pipeline_running":
-            pipeline_status["running"],
-
-        "last_pipeline_status":
-            pipeline_status["last_status"],
-
-        "last_pipeline_completed":
-            pipeline_status["last_completed"],
-    }
-
 
 # ============================================================
 # HEALTH
