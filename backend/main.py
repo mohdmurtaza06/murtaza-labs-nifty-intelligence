@@ -395,7 +395,7 @@ def get_dashboard_data():
         ) * 100
 
     # --------------------------------------------------------
-    # PRODUCTION MODEL OUTPUT
+    # RESEARCH CANDIDATE OUTPUT
     # --------------------------------------------------------
 
     if production is not None:
@@ -456,12 +456,6 @@ def get_dashboard_data():
             "confidence": confidence,
 
             "signal": "NO_TRADE",
-            "trade_status": "NO_TRADE",
-            "trading_mode": "RESEARCH_ONLY",
-            "target_horizon": production.get("target_horizon"),
-            "probabilities_calibrated": bool(
-                production.get("probabilities_calibrated", False)
-            ),
 
             "total_predictions": int(
                 len(history)
@@ -789,25 +783,34 @@ def dashboard():
 
 
 # ============================================================
+# RESEARCH PREDICTION ENDPOINT
+# ============================================================
+
+@app.get("/api/research-prediction")
+def research_prediction():
+    data = get_research_prediction_data()
+    if data is None:
+        raise HTTPException(
+            status_code=503,
+            detail="No current validated research prediction is available.",
+        )
+    return data
+
+
+# ============================================================
 # PRODUCTION PREDICTION ENDPOINT
 # ============================================================
 
 @app.get("/api/production-prediction")
 def production_prediction():
-
-    data = get_research_prediction_data()
-
-    if data is None:
-        raise HTTPException(
-            status_code=404,
-            detail=(
-                "No current validated production prediction is available. "
-                "Refresh market data and retrain the model with the supported "
-                "target horizon before retrying."
-            ),
-        )
-
-    return data
+    # A research candidate must never be exposed through a production endpoint.
+    raise HTTPException(
+        status_code=503,
+        detail=(
+            "No production model is approved. The system remains research-only "
+            "and NO TRADE until all validation and paper-trading gates pass."
+        ),
+    )
 
 
 # ============================================================
@@ -900,33 +903,22 @@ def market():
 
 
 # ============================================================
-# DOWNLOAD CURRENT PREDICTION
+# DOWNLOAD RESEARCH PREDICTION
 # ============================================================
 
 @app.get("/api/download/prediction")
-def download_prediction():
-
-    file = (
-        DATA_DIR /
-        "live_prediction.csv"
-    )
-
+@app.get("/api/download/research-prediction")
+def download_research_prediction():
+    file = DATA_DIR / "latest_research_prediction.csv"
     if not file.exists():
-
         raise HTTPException(
             status_code=404,
-            detail="Prediction file not found"
+            detail="Research prediction file not found.",
         )
-
     return FileResponse(
-
         path=file,
-
-        filename=(
-            "murtaza-labs-live-prediction.csv"
-        ),
-
-        media_type="text/csv"
+        filename="murtaza-labs-research-prediction.csv",
+        media_type="text/csv",
     )
 
 
@@ -936,24 +928,12 @@ def download_prediction():
 
 @app.get("/api/download/production-prediction")
 def download_production_prediction():
-
-    file = DATA_DIR / "latest_research_prediction.json"
-
-    if not file.exists():
-        raise HTTPException(
-            status_code=404,
-            detail=(
-                "latest_research_prediction.json "
-                "not found"
-            ),
-        )
-
-    return FileResponse(
-        path=file,
-        filename=(
-            "murtaza-labs-production-prediction.json"
+    raise HTTPException(
+        status_code=503,
+        detail=(
+            "No production prediction is available. Research candidates are "
+            "not production-approved."
         ),
-        media_type="application/json",
     )
 
 
