@@ -42,7 +42,10 @@ EXPECTED_TARGET_HORIZON = "next_session_open_to_close_direction"
 
 sys.path.insert(0, str(BASE / "src"))
 from model_features_ultimate import build_features
-from readiness_checks import target_from_next_returns
+from readiness_checks import (
+    target_from_next_returns,
+    validate_market_data_freshness,
+)
 
 def load_data():
     ext = pd.read_csv(EXT_PATH, parse_dates=["Date"])
@@ -246,6 +249,10 @@ def main():
     raw = load_data()
     if raw.empty:
         raise RuntimeError("No market observations found; validation aborted.")
+    market_data_age_days = validate_market_data_freshness(
+        raw.index.max(),
+        require_latest_completed_session=True,
+    )
     required_raw = {"Open", "High", "Low", "Close", "Volume"}
     missing_raw = sorted(required_raw - set(raw.columns))
     if missing_raw:
@@ -402,6 +409,7 @@ def main():
         "target_horizon": EXPECTED_TARGET_HORIZON,
         "execution_assumption": "prediction after prior close; enter at next open; exit same-session close",
         "market_data_latest_date": str(pd.Timestamp(raw.index.max()).date()),
+        "market_data_age_days": int(market_data_age_days),
         "data_rows_total": int(len(raw)),
         "labeled_rows": int(len(X_all)),
         "train": {
