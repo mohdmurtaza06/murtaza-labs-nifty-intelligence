@@ -537,6 +537,9 @@ export default function App() {
       }
 
       const nextDashboard = await dashboardRes.json();
+      // Clear an old error only after a successful response, before any new
+      // prediction notification is shown below.
+      setMessage("");
 
       // Detect a genuinely new model prediction.
       // The ref avoids stale state inside the 30-second polling loop.
@@ -566,7 +569,6 @@ export default function App() {
       }
 
       setDashboard(nextDashboard);
-      setMessage("");
       setMarket(
         marketRes.ok ? await marketRes.json() : []
       );
