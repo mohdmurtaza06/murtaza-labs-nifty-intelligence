@@ -1239,10 +1239,10 @@ export default function App() {
             <article className="command-card reveal">
               <span>MODEL STATE</span>
               <div className="command-stat-large">{confidence.toFixed(2)}%</div>
-              <small>Prediction confidence</small>
+              <small>Uncalibrated classifier score</small>
               <div className="command-mini-grid">
-                <div><b>{dashboard.feature_count || 298}</b><span>FEATURES</span></div>
-                <div><b>{dashboard.production_model || "CATBOOST"}</b><span>ENGINE</span></div>
+                <div><b>{dashboard.feature_count ?? "—"}</b><span>FEATURES</span></div>
+                <div><b>{dashboard.research_candidate || "CATBOOST RESEARCH CANDIDATE"}</b><span>ENGINE</span></div>
               </div>
             </article>
 
@@ -1357,8 +1357,8 @@ export default function App() {
               </div>
               <div className="health-list">
                 {[
-                  ["MODEL ENGINE", dashboard.production_model || "CATBOOST", true],
-                  ["FEATURE COUNT", `${dashboard.feature_count || 298}`, true],
+                  ["MODEL ENGINE", dashboard.research_candidate || "CATBOOST RESEARCH CANDIDATE", true],
+                  ["FEATURE COUNT", `${dashboard.feature_count ?? "—"}`, true],
                   ["TRAINED THROUGH", dashboard.model_trained_through || "—", true],
                   ["DATA POINTS", `${advanced.dataPoints}`, true],
                   ["PREDICTIONS", `${totalPredictions}`, true],
@@ -1465,7 +1465,7 @@ export default function App() {
           <SectionTitle
             eyebrow="01 · MARKET INTELLIGENCE"
             title="THE MARKET, DISTILLED."
-            description="A live intelligence layer combining price action, technical indicators, external signals and machine-learning predictions."
+            description="A research-only intelligence layer combining price action, technical indicators, external signals and machine-learning predictions. No live orders are enabled."
           />
 
           <div className="market-grid">
@@ -1516,7 +1516,7 @@ export default function App() {
             </article>
 
             <article className="metric-card reveal">
-              <span>CONFIDENCE</span>
+              <span>RAW MODEL SCORE</span>
 
               <ConfidenceRing
                 value={confidence}
@@ -1640,13 +1640,13 @@ export default function App() {
             <div className="model-main reveal">
               <div className="model-status">
                 <i />
-                MODEL ONLINE
+                RESEARCH CANDIDATE · NO TRADE
               </div>
 
               <h3>
                 CATBOOST
                 <span>
-                  PRODUCTION CLASSIFICATION ENGINE
+                  RESEARCH CLASSIFIER · NOT PRODUCTION APPROVED
                 </span>
               </h3>
 
@@ -1731,7 +1731,7 @@ export default function App() {
               </div>
 
               <div className="model-stat reveal">
-                <span>CONFIDENCE</span>
+                <span>RAW MODEL SCORE</span>
 
                 <strong>
                   {confidence.toFixed(2)}%
@@ -1766,7 +1766,7 @@ export default function App() {
                 <span>03 · PREDICTION INTELLIGENCE</span>
                 <h3>WHY THE MODEL LEANS THIS WAY.</h3>
                 <p>
-                  Live technical and market conditions calculated from
+                  Research-only technical and market conditions calculated from
                   the latest available NIFTY 50 data.
                 </p>
               </div>
