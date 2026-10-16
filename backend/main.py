@@ -113,26 +113,37 @@ def mark_pipeline_complete():
 # FASTAPI LIFESPAN
 # ============================================================
 
+def automatic_scheduler_enabled() -> bool:
+    """The in-process scheduler is opt-in, never enabled by a web deploy."""
+    return os.environ.get("NIFTY_ENABLE_SCHEDULER", "").strip().lower() in {
+        "1", "true", "yes", "on"
+    }
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
 
+    scheduler_thread = None
     print("=" * 70)
     print("MURTAZA LABS NIFTY INTELLIGENCE API")
     print("=" * 70)
-    print("Automatic daily pipeline scheduler: ENABLED")
     print("Timezone: Asia/Kolkata")
-    print("Scheduled pipeline time: 16:00 IST")
+
+    if automatic_scheduler_enabled():
+        print("Automatic daily research scheduler: ENABLED BY EXPLICIT OPT-IN")
+        print("Scheduled pipeline time: 16:00 IST")
+        scheduler_thread = threading.Thread(
+            target=automatic_pipeline_scheduler,
+            daemon=True,
+        )
+        scheduler_thread.start()
+    else:
+        print("Automatic daily research scheduler: DISABLED (default)")
+        print("Set NIFTY_ENABLE_SCHEDULER=true only for a single-process local research run.")
+        print("Do not use the in-process scheduler as a production multi-worker job service.")
+
     print("=" * 70)
-
-    scheduler_thread = threading.Thread(
-        target=automatic_pipeline_scheduler,
-        daemon=True
-    )
-
-    scheduler_thread.start()
-
     yield
-
     print("API shutting down...")
 
 
